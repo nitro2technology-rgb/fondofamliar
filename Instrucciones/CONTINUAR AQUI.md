@@ -184,3 +184,28 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 **Pendiente**
 1. Ejecutar `0006` en Supabase y subir a GitHub.
 2. Semana 4: calendario real, correos/recordatorios (Resend), reportes PDF, pruebas, cierre de ciclo.
+
+## ESTADO ACTUAL (cierre de sesión 6) — leer esto primero
+**Semanas 1–3 completas en código y subidas a GitHub** (último commit `38a678d`). Producción: `fondofamiliar.nitro2tech.com` (Vercel despliega al hacer push).
+
+**Migraciones SQL (carpeta `fondo-familiar/supabase/migrations/`)**
+- 0001–0005: ejecutadas en Supabase por el usuario (0004 confirmado; 0005 se pidió correr).
+- **0006: pendiente de ejecutar** (entregas de cadena, `multas.pagada_en`, `saldo_calculado`). Sin ella fallan `/admin/cadena` y la conciliación en `/admin/capturas`.
+
+**Pantallas del asociado**: Inicio (préstamo/caja reales, resumen, "Mis cuotas"), Préstamos (solicitar, cola, saldo, movimientos), Calendario y Perfil (aún maqueta/mock), Primer ingreso, Completar cuenta.
+**Pantallas admin** (`/admin`): Préstamos (votar, desembolsar, interés/mora/capital), Cuotas, Cadena, Asistencia y juegos, Multas, Aportes únicos, Captura NU (con conciliación), Asociados, Descargar cuotas (CSV).
+
+**Cada asociado solo ve lo suyo**: los pagos registrados a otra persona se ven en `/admin/cuotas`, no en el Inicio del admin.
+
+**Supuestos pendientes de confirmar con los directivos**
+1. Mora: 4% mensual sobre cada interés vencido y no pagado, por cada reunión transcurrida (provisional, `lib/prestamos.ts`).
+2. Ahorro acumulado = ahorro de cuotas pagadas + aporte inicial.
+3. Caja prestable = ahorro pagado + aporte inicial + intereses/abonos − desembolsos − aprobados sin desembolsar (cadena y juegos no se prestan).
+4. Premios de juegos se pagan en la reunión; ausentes no pagan multa si no viven en Pasto; ausentes no descuentan su parte del recaudo de juegos.
+5. Posible choque del 4% mensual con la tasa de usura (decisión del reglamento).
+
+**Pendiente (orden sugerido)**
+1. Usuario: ejecutar 0006 (y confirmar 0005) en el SQL Editor; probar el flujo completo: pago de cuota → Inicio, solicitud → votación 2/3 → desembolso → interés/abono, asistencia → multa, cadena, captura NU.
+2. Usuario: entregar el Excel del fondo (migrar pagos históricos) y avisar a los 19 asociados que activen su cuenta con "Primer ingreso" cuando todo esté listo.
+3. **Semana 4**: Calendario real (cuotas, reuniones, turno de cadena, vencimientos); correos y recordatorios con Resend (confirmar que el dominio esté verificado) y crons; reportes/PDF por asociado; cierre de ciclo (liquidación, utilidades en partes iguales entre los 19); pruebas; Perfil real.
+4. Notas técnicas: en Windows el `git push` a veces tarda >2 min (reintentar); el usuario ya aprobó commit/push directo en esta sesión.
