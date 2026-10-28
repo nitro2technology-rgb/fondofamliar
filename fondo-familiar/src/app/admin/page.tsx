@@ -16,10 +16,11 @@ async function AdminContenido() {
   return (
     <main className="mx-auto w-full max-w-md flex-1 space-y-4 px-4 pt-8">
       <h1 className="text-3xl font-bold tracking-tight">Administración</h1>
-      <p className="text-muted">Próximamente: votación de préstamos, asistencia y reportes.</p>
+      <p className="text-muted">Registro y consulta del fondo.</p>
       {[
         ["/admin/prestamos", "Préstamos (votación, desembolsos y pagos)"],
         ["/admin/cuotas", "Cuotas mensuales"],
+        ["/admin/cadena", "Cadena (entrega del turno)"],
         ["/admin/asistencia", "Asistencia y juegos"],
         ["/admin/multas", "Multas"],
         ["/admin/aportes", "Aportes únicos (inicial y tecnológico)"],

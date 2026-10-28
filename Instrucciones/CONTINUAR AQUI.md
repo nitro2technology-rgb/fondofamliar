@@ -172,3 +172,15 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 1. Subir a GitHub y probar. Falta pagar la cadena al receptor del turno y la conciliación NU (necesita el saldo calculado completo).
 2. Semana 4: calendario real, correos/recordatorios, reportes PDF, pruebas.
 3. Confirmar fórmula de mora y, con el Excel, migrar datos históricos.
+
+## Sesión 6 (cont.) — Cadena y conciliación NU (cierra Semana 3)
+**Hecho (código)**
+- Migración `0006_cadena_conciliacion.sql`: tabla `entregas_cadena`, columna `multas.pagada_en`, función `saldo_calculado(hasta)` (solo admins).
+- `/admin/cadena`: recaudo de cadena por turno y "Registrar entrega" al receptor.
+- `/admin/capturas`: cada captura muestra saldo NU vs saldo de la app a fin de mes y "Cuadra" / diferencia.
+
+**Fórmula del saldo de la app**: cuotas pagadas (ahorro+cadena+juegos) + aportes únicos + intereses/mora/abonos + multas pagadas − desembolsos − entregas de cadena − premios de juegos (se asume que se pagan en la reunión).
+
+**Pendiente**
+1. Ejecutar `0006` en Supabase y subir a GitHub.
+2. Semana 4: calendario real, correos/recordatorios (Resend), reportes PDF, pruebas, cierre de ciclo.

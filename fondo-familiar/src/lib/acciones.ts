@@ -372,7 +372,9 @@ export async function marcarMultaPagada(formData: FormData) {
   const supabase = await crearClienteServidor();
   await supabase
     .from("multas")
-    .update({ pagada: formData.get("pagada") === "si" })
+    .update(
+      formData.get("pagada") === "si" ? { pagada: true, pagada_en: hoyColombia() } : { pagada: false, pagada_en: null },
+    )
     .eq("id", String(formData.get("id")));
   revalidatePath("/admin/multas");
 }
@@ -391,4 +393,25 @@ export async function guardarJuegos(formData: FormData) {
     utilidad: recaudo - Math.floor(recaudo / 2),
   });
   revalidatePath("/admin/asistencia");
+}
+
+// ───────── Cadena ─────────
+// Registra que el recaudo de cadena del mes ya se entregó a quien tenía el turno.
+export async function registrarEntregaCadena(formData: FormData) {
+  const admin = await requerirAdmin();
+  const supabase = await crearClienteServidor();
+  await supabase.from("entregas_cadena").upsert({
+    turno: Number(formData.get("turno")),
+    monto: montoDe(formData.get("monto")),
+    fecha_entrega: hoyColombia(),
+    registrado_por: admin.id,
+  });
+  revalidatePath("/admin/cadena");
+}
+
+export async function deshacerEntregaCadena(formData: FormData) {
+  await requerirAdmin();
+  const supabase = await crearClienteServidor();
+  await supabase.from("entregas_cadena").delete().eq("turno", Number(formData.get("turno")));
+  revalidatePath("/admin/cadena");
 }

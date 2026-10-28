@@ -24,7 +24,10 @@ async function Contenido() {
   const capturas = await Promise.all(
     (data ?? []).map(async (c) => {
       const { data: firmada } = await supabase.storage.from("capturas-nu").createSignedUrl(c.ruta_archivo, 3600);
-      return { ...c, url: firmada?.signedUrl };
+      const [a, m] = c.periodo.split("-").map(Number);
+      const finDeMes = new Date(Date.UTC(a, m, 0)).toISOString().slice(0, 10);
+      const { data: calculado } = await supabase.rpc("saldo_calculado", { hasta: finDeMes });
+      return { ...c, url: firmada?.signedUrl, calculado: calculado == null ? null : Number(calculado) };
     }),
   );
 
@@ -41,7 +44,15 @@ async function Contenido() {
           <div key={c.periodo} className="flex items-center justify-between rounded-2xl border border-card-border bg-card p-3">
             <div>
               <p className="text-sm font-medium">{mesLargo(c.periodo)}</p>
-              {c.saldo_declarado != null && <p className="text-xs text-muted">{pesos(Number(c.saldo_declarado))}</p>}
+              {c.saldo_declarado != null && <p className="text-xs text-muted">NU: {pesos(Number(c.saldo_declarado))}</p>}
+              {c.calculado != null && <p className="text-xs text-muted">App: {pesos(c.calculado)}</p>}
+              {c.saldo_declarado != null && c.calculado != null && (
+                <p className={`text-xs font-medium ${Number(c.saldo_declarado) === c.calculado ? "text-ok" : "text-danger"}`}>
+                  {Number(c.saldo_declarado) === c.calculado
+                    ? "Cuadra"
+                    : `Diferencia: ${pesos(Number(c.saldo_declarado) - c.calculado)}`}
+                </p>
+              )}
             </div>
             {c.url && (
               <a href={c.url} target="_blank" rel="noreferrer" className="text-sm text-accent underline">
