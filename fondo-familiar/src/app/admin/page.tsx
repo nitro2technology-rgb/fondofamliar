@@ -27,6 +27,9 @@ async function AdminContenido() {
           {texto}
         </Link>
       ))}
+      <a href="/admin/exportar" className="block rounded-2xl border border-card-border bg-card p-4 font-medium">
+        Descargar cuotas (Excel)
+      </a>
       <Link href="/elegir-panel" className="inline-block text-accent underline">
         Cambiar de panel
       </Link>
