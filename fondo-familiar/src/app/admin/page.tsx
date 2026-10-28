@@ -19,6 +19,12 @@ async function AdminContenido() {
       <p className="text-muted">
         Aquí irán el registro de aportes y pagos, la votación de préstamos, la asistencia y los reportes.
       </p>
+      <Link
+        href="/admin/asociados"
+        className="block rounded-2xl border border-card-border bg-card p-4 font-medium"
+      >
+        Asociados (celular y ciudad)
+      </Link>
       <Link href="/elegir-panel" className="inline-block text-accent underline">
         Cambiar de panel
       </Link>

@@ -1,6 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Rutas que se pueden ver sin sesión.
+const PUBLICAS = ["/login", "/primer-ingreso"];
+
 // Refresca la sesión de Supabase y envía a /login a quien no haya iniciado sesión.
 // La autorización real por rol se verifica en el servidor (lib/auth.ts) y en la base de datos (RLS).
 export async function proxy(request: NextRequest) {
@@ -25,12 +28,12 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const enLogin = request.nextUrl.pathname === "/login";
+  const esPublica = PUBLICAS.includes(request.nextUrl.pathname);
 
-  if (!user && !enLogin) {
+  if (!user && !esPublica) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
-  if (user && enLogin) {
+  if (user && esPublica) {
     return NextResponse.redirect(new URL("/elegir-panel", request.url));
   }
   return respuesta;

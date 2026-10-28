@@ -7,12 +7,12 @@ export type Perfil = {
   nombre: string;
   correo: string;
   rol: "asociado" | "tesorero" | "contador" | "fiscal";
+  primer_ingreso_completo: boolean;
 };
 
 export const esAdmin = (p: Perfil) => p.rol !== "asociado";
 
-// Perfil del usuario con sesión; si no hay sesión o perfil activo, vuelve al login.
-export async function requerirPerfil(): Promise<Perfil> {
+async function leerPerfil(): Promise<Perfil> {
   const supabase = await crearClienteServidor();
   const {
     data: { user },
@@ -21,13 +21,23 @@ export async function requerirPerfil(): Promise<Perfil> {
 
   const { data } = await supabase
     .from("perfiles")
-    .select("id, nombre, correo, rol")
+    .select("id, nombre, correo, rol, primer_ingreso_completo")
     .eq("id", user.id)
     .eq("activo", true)
     .maybeSingle();
   if (!data) redirect("/login?error=sin-perfil");
 
   return data as Perfil;
+}
+
+// Para /completar-cuenta: exige sesión pero no que la cuenta esté completa.
+export const requerirSesion = leerPerfil;
+
+// Perfil del usuario con sesión; si aún no completó su cuenta, lo envía a completarla.
+export async function requerirPerfil(): Promise<Perfil> {
+  const perfil = await leerPerfil();
+  if (!perfil.primer_ingreso_completo) redirect("/completar-cuenta");
+  return perfil;
 }
 
 export async function requerirAdmin(): Promise<Perfil> {

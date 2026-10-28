@@ -76,3 +76,35 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 
 **Próximo paso**
 - Panel admin para crear los 19 usuarios (usa service role en servidor), cargar cadena de turnos y luego Semana 2 (cuotas, estado de cuenta real, Excel, captura NU).
+
+## Sesión 4 (cierre) — Despliegue en producción
+**Hecho**
+- Repo GitHub `nitro2technology-rgb/fondofamliar` (raíz = carpeta `Fondo famliar`, la app está en `fondo-familiar/`).
+- Vercel: Root Directory = `fondo-familiar`, Framework = Next.js, dominio `fondofamiliar.nitro2tech.com`. **Login funcionando en producción.**
+- Variables en Vercel: `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` tipo Config; `SUPABASE_SERVICE_ROLE_KEY` tipo Sensitive (solo servidor).
+
+**Notas**
+- Si Vercel muestra 404 tras un deploy "Ready": revisar Root Directory, que el deploy sea Production/Current y el dominio asignado.
+- Las variables nuevas requieren Redeploy para aplicarse.
+
+**Próximo paso**
+- Panel admin: crear los 19 usuarios (service role en servidor) y cargar turnos de cadena; luego Semana 2 (cuotas, estado de cuenta real, Excel, captura NU).
+
+## Sesión 5 — Primer ingreso por celular y panel de asociados
+**Decisiones**
+- Primer ingreso solo con celular (sin contraseña): botón "Primer ingreso" en el login -> celular -> "Hola, <nombre>" -> la persona escribe su correo real y crea contraseña -> desde ahí entra con correo + contraseña. Se aceptó el riesgo (hay confianza en el fondo).
+- Las cuentas se crean con un correo interno provisional (`socio<turno>@fondofamiliar.nitro2tech.com`) y contraseña aleatoria que nadie conoce; el celular identifica a la persona hasta completar la cuenta.
+- Celular y ciudad editables en el panel de administración (`/admin/asociados`); allí también "Permitir nuevo primer ingreso" (si alguien olvida su contraseña).
+
+**Hecho (código)**
+- Migración `0003_celular_primer_ingreso.sql` (columnas `celular` y `primer_ingreso_completo`).
+- Páginas `/primer-ingreso`, `/completar-cuenta`, `/admin/asociados`; acciones en `lib/acciones.ts`; `lib/supabase/admin.ts` (service role, solo servidor); `proxy.ts` permite rutas públicas `/login` y `/primer-ingreso`.
+- Excel `Instrucciones/Listado general/Asociados - celulares.xlsx` (excluido de git): 17 de 19 celulares; faltan Freddy Yamá y Gianni Obando (se agregan en el panel).
+- Script de carga (fuera del repo) listo para crear los 19 usuarios + `cadena_turnos`.
+
+**Pendiente**
+1. Usuario ejecuta `0003` en el SQL Editor de Supabase.
+2. Ejecutar el script de carga (crea 19 usuarios, perfiles con rol/ciudad/celular y los 19 turnos de la cadena).
+3. Subir a GitHub (deploy en Vercel) y probar Primer ingreso en producción.
+4. Agregar celulares de Freddy y Gianni en `/admin/asociados`.
+5. Nota: la cuenta de administrador previa del usuario (correo propio) ya no se necesita; Nicolás entra por Primer ingreso como fiscal.

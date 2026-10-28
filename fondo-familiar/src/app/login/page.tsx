@@ -1,3 +1,4 @@
+import Link from "next/link";
 import FormularioLogin from "./FormularioLogin";
 
 export default function Login() {
@@ -8,6 +9,12 @@ export default function Login() {
         <p className="mt-2 text-muted">Ingresa con tu correo para ver tu estado de cuenta.</p>
       </div>
       <FormularioLogin />
+      <Link
+        href="/primer-ingreso"
+        className="rounded-2xl border border-card-border bg-card py-4 text-center font-medium"
+      >
+        Primer ingreso
+      </Link>
     </main>
   );
 }
