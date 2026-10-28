@@ -2,7 +2,8 @@ import Link from "next/link";
 import { ArrowRight, CalendarClock, PiggyBank, Repeat, Receipt } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { ejemplo as d } from "@/lib/mock";
-import { pesos } from "@/lib/format";
+import { pesos, fechaCorta } from "@/lib/format";
+import { estadoDeCuenta } from "@/lib/cuentas";
 import { Suspense } from "react";
 import { requerirPerfil } from "@/lib/auth";
 
@@ -16,6 +17,7 @@ export default function Inicio() {
 
 async function InicioContenido() {
   const perfil = await requerirPerfil();
+  const cuenta = await estadoDeCuenta(perfil.id);
   const puedePedir = Math.min(d.topePrestamo, d.cajaDisponible);
 
   return (
@@ -67,16 +69,29 @@ async function InicioContenido() {
       {/* Resumen del resto */}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Mi resumen</h2>
-        <Fila icon={PiggyBank} titulo="Ahorro acumulado" valor={pesos(d.ahorro)} />
-        <Fila
-          icon={Receipt}
-          titulo={`Cuota mensual · ${d.cuotaMensual.estado}`}
-          valor={pesos(d.cuotaMensual.total)}
-          nota={`Vence ${d.cuotaMensual.vence}`}
-        />
-        <Fila icon={Repeat} titulo="Mi turno de cadena" valor={`Turno ${d.cadena.turno}`} nota={d.cadena.fecha} />
-        <Fila icon={CalendarClock} titulo="Próxima reunión" valor={d.proximaReunion} />
-        <Fila icon={Receipt} titulo="Multas pendientes" valor={pesos(d.multasPendientes)} />
+        <Fila icon={PiggyBank} titulo="Ahorro acumulado" valor={pesos(cuenta.ahorro)} />
+        {cuenta.cuota ? (
+          <Fila
+            icon={Receipt}
+            titulo={`Cuota mensual · ${cuenta.cuota.estado}`}
+            valor={pesos(cuenta.cuota.total)}
+            nota={`Vence ${fechaCorta(cuenta.cuota.vence)}`}
+          />
+        ) : (
+          <Fila icon={Receipt} titulo="Cuota mensual" valor="Al día" />
+        )}
+        {cuenta.miTurno && (
+          <Fila
+            icon={Repeat}
+            titulo="Mi turno de cadena"
+            valor={`Turno ${cuenta.miTurno.turno}`}
+            nota={fechaCorta(cuenta.miTurno.fecha_reunion)}
+          />
+        )}
+        {cuenta.proximaReunion && (
+          <Fila icon={CalendarClock} titulo="Próxima reunión" valor={`${fechaCorta(cuenta.proximaReunion)} · 7:30 p. m.`} />
+        )}
+        <Fila icon={Receipt} titulo="Multas pendientes" valor={pesos(cuenta.multasPendientes)} />
       </section>
     </div>
   );

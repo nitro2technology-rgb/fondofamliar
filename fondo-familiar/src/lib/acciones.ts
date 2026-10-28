@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { requerirAdmin } from "@/lib/auth";
+import { hoyColombia } from "@/lib/format";
 
 export type EstadoForm = { error?: string; ok?: boolean };
 
@@ -136,4 +137,83 @@ export async function reiniciarPrimerIngreso(formData: FormData) {
     .update({ primer_ingreso_completo: false })
     .eq("id", String(formData.get("id")));
   revalidatePath("/admin/asociados");
+}
+
+// ───────── Cuotas y aportes (tesorero / contador / fiscal) ─────────
+export async function registrarPagoCuota(formData: FormData) {
+  const admin = await requerirAdmin();
+  const fecha = String(formData.get("fecha") ?? "") || hoyColombia();
+  const supabase = await crearClienteServidor();
+  await supabase
+    .from("cuotas")
+    .update({ estado: "pagada", fecha_pago: fecha, registrado_por: admin.id })
+    .eq("id", String(formData.get("id")));
+  revalidatePath("/admin/cuotas");
+}
+
+// Corrige un registro equivocado; queda en la auditoría.
+export async function deshacerPagoCuota(formData: FormData) {
+  const admin = await requerirAdmin();
+  const supabase = await crearClienteServidor();
+  await supabase
+    .from("cuotas")
+    .update({ estado: "pendiente", fecha_pago: null, registrado_por: admin.id })
+    .eq("id", String(formData.get("id")));
+  revalidatePath("/admin/cuotas");
+}
+
+export async function registrarAporte(formData: FormData) {
+  const admin = await requerirAdmin();
+  const tipo = String(formData.get("tipo"));
+  if (tipo !== "inicial" && tipo !== "tecnologico") return;
+  const clave = tipo === "inicial" ? "aporte_inicial" : "aporte_tecnologico";
+  const supabase = await crearClienteServidor();
+  const { data: parametro } = await supabase.from("parametros").select("valor").eq("clave", clave).single();
+  await supabase.from("aportes_unicos").insert({
+    asociado_id: String(formData.get("asociado_id")),
+    tipo,
+    monto: Number(parametro?.valor ?? 0),
+    fecha_pago: String(formData.get("fecha") ?? "") || hoyColombia(),
+    registrado_por: admin.id,
+  });
+  revalidatePath("/admin/aportes");
+}
+
+export async function deshacerAporte(formData: FormData) {
+  await requerirAdmin();
+  const supabase = await crearClienteServidor();
+  await supabase.from("aportes_unicos").delete().eq("id", String(formData.get("id")));
+  revalidatePath("/admin/aportes");
+}
+
+// ───────── Captura mensual de la cuenta NU ─────────
+export async function subirCaptura(_: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const admin = await requerirAdmin();
+  const mes = String(formData.get("mes") ?? ""); // YYYY-MM
+  const archivo = formData.get("archivo");
+  const saldoTexto = String(formData.get("saldo") ?? "").replace(/\D/g, "");
+
+  if (!/^\d{4}-\d{2}$/.test(mes)) return { error: "Elige el mes." };
+  if (!(archivo instanceof File) || archivo.size === 0) return { error: "Adjunta la captura de pantalla." };
+  if (!archivo.type.startsWith("image/")) return { error: "El archivo debe ser una imagen." };
+  if (archivo.size > 8 * 1024 * 1024) return { error: "La imagen pesa más de 8 MB." };
+
+  const supabase = await crearClienteServidor();
+  const ruta = `${mes}/${Date.now()}-${archivo.name.replace(/[^\w.-]/g, "_")}`;
+  const { error: errorSubida } = await supabase.storage.from("capturas-nu").upload(ruta, archivo);
+  if (errorSubida) return { error: "No se pudo subir la imagen." };
+
+  const { error } = await supabase.from("capturas_cuenta").upsert(
+    {
+      periodo: `${mes}-01`,
+      ruta_archivo: ruta,
+      saldo_declarado: saldoTexto ? Number(saldoTexto) : null,
+      subido_por: admin.id,
+      subido_en: new Date().toISOString(),
+    },
+    { onConflict: "periodo" },
+  );
+  if (error) return { error: "No se pudo guardar el registro." };
+  revalidatePath("/admin/capturas");
+  return { ok: true };
 }

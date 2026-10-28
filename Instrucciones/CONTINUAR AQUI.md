@@ -124,3 +124,19 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 1. Agregar celulares de Freddy Yamá y Gianni Obando en `/admin/asociados`.
 2. Avisar a los 19 que activen su cuenta con "Primer ingreso".
 3. Siguiente fase (Semana 2): cuotas/aportes con registro por tesorero y contador, estado de cuenta real en Inicio, migración del Excel del fondo, captura mensual de la cuenta NU.
+
+## Sesión 6 — Semana 2 (cuotas, estado de cuenta, captura NU)
+**Hecho (código, sin subir aún)**
+- Migración `0004_cuotas_y_capturas.sql`: crea las reuniones desde la cadena, función `generar_cuotas()` (19 meses × 19 asociados; el mes de su turno la cadena queda en 0, `select generar_cuotas()` ya se ejecuta al final) y bucket privado `capturas-nu` con políticas solo admin.
+- Inicio con datos reales (`lib/cuentas.ts`): cuota pendiente/en mora (vence = día de reunión), ahorro acumulado, turno de cadena, próxima reunión, multas. Préstamo/caja siguen en mock (Semana 3).
+- Admin: `/admin/cuotas` (registrar/deshacer pago por mes), `/admin/aportes` (inicial y tecnológico), `/admin/capturas` (subir captura NU + saldo declarado).
+
+**Supuestos a confirmar**
+- Ahorro acumulado = ahorro de cuotas pagadas + aporte inicial.
+- "En mora" se calcula al vuelo (cuota impaga con reunión ya pasada); el cobro de interés de mora es de Semana 3.
+
+**Pendiente**
+1. Usuario ejecuta `0004` en el SQL Editor y sube a GitHub.
+2. Probar: registrar un pago en `/admin/cuotas` y verlo en Inicio.
+3. Excel del fondo (migración de pagos históricos), exportar estado de cuenta, conciliación NU vs. saldo calculado.
+4. Semana 3: préstamos, votación, intereses, mora, multas/asistencia.
