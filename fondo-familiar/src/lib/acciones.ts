@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { clienteAdmin } from "@/lib/supabase/admin";
-import { requerirAdmin } from "@/lib/auth";
+import { requerirAdmin, requerirPerfil } from "@/lib/auth";
 import { hoyColombia } from "@/lib/format";
 
 export type EstadoForm = { error?: string; ok?: boolean };
@@ -216,4 +216,112 @@ export async function subirCaptura(_: EstadoForm, formData: FormData): Promise<E
   if (error) return { error: "No se pudo guardar el registro." };
   revalidatePath("/admin/capturas");
   return { ok: true };
+}
+
+// ───────── Préstamos ─────────
+const montoDe = (v: FormDataEntryValue | null) => Number(String(v ?? "").replace(/\D/g, ""));
+
+export async function solicitarPrestamo(_: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const perfil = await requerirPerfil();
+  const monto = montoDe(formData.get("monto"));
+  const externo = String(formData.get("externo") ?? "").trim();
+  const hoy = hoyColombia();
+
+  const supabase = await crearClienteServidor();
+  const [{ data: tope }, { data: impagas }, { data: turnos }, { data: multas }] = await Promise.all([
+    supabase.from("parametros").select("valor").eq("clave", "tope_prestamo").single(),
+    supabase.from("cuotas").select("periodo").eq("asociado_id", perfil.id).neq("estado", "pagada"),
+    supabase.from("cadena_turnos").select("fecha_reunion"),
+    supabase.from("multas").select("id").eq("asociado_id", perfil.id).eq("pagada", false),
+  ]);
+
+  if (!monto || monto < 10000) return { error: "Escribe un monto de al menos $10.000." };
+  if (monto > Number(tope?.valor ?? 1_000_000)) {
+    return { error: "El monto supera el tope por asociado." };
+  }
+  const vencidas = (impagas ?? []).some((c) =>
+    (turnos ?? []).some((t) => t.fecha_reunion.slice(0, 7) === c.periodo.slice(0, 7) && t.fecha_reunion < hoy),
+  );
+  if (vencidas || (multas ?? []).length > 0) {
+    return { error: "Debes estar al día (cuotas y multas) para solicitar un préstamo." };
+  }
+
+  let externoId: string | null = null;
+  if (externo) {
+    const { data, error } = await clienteAdmin()
+      .from("externos")
+      .insert({ nombre: externo, padrino_id: perfil.id })
+      .select("id")
+      .single();
+    if (error) return { error: "No se pudo registrar al externo." };
+    externoId = data.id;
+  }
+
+  const { error } = await supabase
+    .from("prestamos")
+    .insert({ asociado_id: perfil.id, externo_id: externoId, monto, estado: "radicado" });
+  if (error) {
+    return {
+      error: error.code === "23505" ? "Ya tienes una solicitud o un préstamo en curso." : "No se pudo radicar la solicitud.",
+    };
+  }
+  revalidatePath("/prestamos");
+  revalidatePath("/");
+  return { ok: true };
+}
+
+export async function votarPrestamo(formData: FormData) {
+  const admin = await requerirAdmin();
+  const voto = String(formData.get("voto"));
+  if (voto !== "aprobar" && voto !== "rechazar") return;
+  const supabase = await crearClienteServidor();
+  await supabase
+    .from("votos_prestamo")
+    .insert({ prestamo_id: String(formData.get("id")), admin_id: admin.id, voto });
+  revalidatePath("/admin/prestamos");
+}
+
+export async function desembolsarPrestamo(formData: FormData) {
+  const admin = await requerirAdmin();
+  const id = String(formData.get("id"));
+  const supabase = await crearClienteServidor();
+  const [{ data: prestamo }, { data: caja }] = await Promise.all([
+    supabase.from("prestamos").select("monto, estado").eq("id", id).single(),
+    supabase.rpc("caja_disponible"),
+  ]);
+  // La caja ya descuenta los préstamos aprobados, incluido este.
+  if (!prestamo || prestamo.estado !== "aprobado" || Number(caja) < 0) return;
+
+  const fecha = hoyColombia();
+  const { error } = await supabase
+    .from("movimientos_prestamo")
+    .insert({ prestamo_id: id, tipo: "desembolso", monto: prestamo.monto, fecha, registrado_por: admin.id });
+  if (error) return;
+  await supabase.from("prestamos").update({ estado: "vigente", desembolsado_en: fecha }).eq("id", id);
+  revalidatePath("/admin/prestamos");
+}
+
+export async function registrarMovimientoPrestamo(formData: FormData) {
+  const admin = await requerirAdmin();
+  const id = String(formData.get("id"));
+  const tipo = String(formData.get("tipo"));
+  const monto = montoDe(formData.get("monto"));
+  if (!["interes", "abono_capital", "interes_mora"].includes(tipo) || monto <= 0) return;
+
+  const supabase = await crearClienteServidor();
+  const { data: movs } = await supabase.from("movimientos_prestamo").select("tipo, monto").eq("prestamo_id", id);
+  const saldo = (movs ?? []).reduce(
+    (s, m) => s + (m.tipo === "desembolso" ? Number(m.monto) : m.tipo === "abono_capital" ? -Number(m.monto) : 0),
+    0,
+  );
+  if (tipo === "abono_capital" && monto > saldo) return;
+
+  const { error } = await supabase
+    .from("movimientos_prestamo")
+    .insert({ prestamo_id: id, tipo, monto, fecha: hoyColombia(), registrado_por: admin.id });
+  if (error) return;
+  if (tipo === "abono_capital" && monto === saldo) {
+    await supabase.from("prestamos").update({ estado: "pagado" }).eq("id", id);
+  }
+  revalidatePath("/admin/prestamos");
 }

@@ -140,3 +140,20 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 2. Probar: registrar un pago en `/admin/cuotas` y verlo en Inicio.
 3. Excel del fondo (migración de pagos históricos), exportar estado de cuenta, conciliación NU vs. saldo calculado.
 4. Semana 3: préstamos, votación, intereses, mora, multas/asistencia.
+
+## Sesión 6 (cont.) — Semana 3: préstamos
+**Hecho (código)**
+- Migración `0005_prestamos.sql`: `caja_disponible()`, `posicion_cola()`, trigger que decide la votación con 2 votos iguales, votos inmutables, índice único (un préstamo en curso por asociado).
+- `lib/prestamos.ts`: capital, interés fijo 4% sobre capital inicial (vence cada reunión posterior al desembolso), mora provisional.
+- Asociado: `/prestamos` (solicitar con externo opcional, posición en cola, saldo, movimientos, historial). Inicio ahora usa préstamo/caja reales y muestra "Mis cuotas" (historial mes a mes).
+- Admin: `/admin/prestamos` (votar aprobar/rechazar, desembolsar, registrar interés/mora/capital; al abonar todo el capital pasa a "pagado").
+
+**Supuestos**
+- Caja prestable = ahorro de cuotas pagadas + aporte inicial + intereses y abonos − desembolsos − aprobados sin desembolsar. Cadena y juegos no se prestan.
+- Se puede radicar aunque no haya caja (queda en cola); el desembolso exige caja >= 0.
+- Solo se radica estando al día (cuotas vencidas y multas).
+
+**Pendiente**
+1. Usuario ejecuta `0005` en Supabase y sube a GitHub.
+2. Semana 3 restante: asistencia, multas y juegos; pago de la cadena al receptor del turno; conciliación NU.
+3. Pendiente confirmar fórmula de mora.

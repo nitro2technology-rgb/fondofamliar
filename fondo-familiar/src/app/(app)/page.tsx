@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { ArrowRight, CalendarClock, PiggyBank, Repeat, Receipt } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
-import { ejemplo as d } from "@/lib/mock";
-import { pesos, fechaCorta } from "@/lib/format";
-import { estadoDeCuenta } from "@/lib/cuentas";
+import { pesos, fechaCorta, mesLargo } from "@/lib/format";
+import { estadoDeCuenta, resumenPrestamo } from "@/lib/cuentas";
 import { Suspense } from "react";
 import { requerirPerfil } from "@/lib/auth";
 
@@ -17,8 +16,11 @@ export default function Inicio() {
 
 async function InicioContenido() {
   const perfil = await requerirPerfil();
-  const cuenta = await estadoDeCuenta(perfil.id);
-  const puedePedir = Math.min(d.topePrestamo, d.cajaDisponible);
+  const [cuenta, { prestamo, tope, puedePedir }] = await Promise.all([
+    estadoDeCuenta(perfil.id),
+    resumenPrestamo(perfil.id),
+  ]);
+  const vigente = prestamo?.estado === "vigente" ? prestamo : null;
 
   return (
     <div className="space-y-6">
@@ -32,20 +34,25 @@ async function InicioContenido() {
 
       {/* Tarjeta principal: préstamo vigente y cuánto puede pedir */}
       <section className="rounded-3xl bg-gradient-to-br from-accent to-[#4a1d99] p-6 text-accent-fg shadow-lg">
-        {d.prestamo.vigente ? (
+        {vigente ? (
           <>
             <p className="text-sm opacity-80">Tu préstamo</p>
-            <p className="mt-1 text-4xl font-bold tracking-tight">{pesos(d.prestamo.capital)}</p>
+            <p className="mt-1 text-4xl font-bold tracking-tight">{pesos(vigente.cuentas.saldoCapital)}</p>
             <div className="mt-4 flex justify-between text-sm">
               <div>
                 <p className="opacity-70">Interés mensual fijo</p>
-                <p className="font-semibold">{pesos(d.prestamo.interesMensual)}</p>
+                <p className="font-semibold">{pesos(vigente.cuentas.interesMensual)}</p>
               </div>
               <div className="text-right">
-                <p className="opacity-70">Interés al día hasta</p>
-                <p className="font-semibold">{d.prestamo.interesPagadoHasta}</p>
+                <p className="opacity-70">Interés pendiente</p>
+                <p className="font-semibold">{pesos(vigente.cuentas.interesPendiente)}</p>
               </div>
             </div>
+          </>
+        ) : prestamo ? (
+          <>
+            <p className="text-sm opacity-80">Solicitud {prestamo.estado === "radicado" ? "en votación" : "aprobada"}</p>
+            <p className="mt-1 text-4xl font-bold tracking-tight">{pesos(Number(prestamo.monto))}</p>
           </>
         ) : (
           <>
@@ -58,11 +65,11 @@ async function InicioContenido() {
           href="/prestamos"
           className="mt-5 flex items-center justify-between rounded-2xl bg-white/15 px-4 py-3 text-sm font-medium"
         >
-          {d.prestamo.vigente ? "Ver detalle y abonos" : "Solicitar préstamo"}
+          {prestamo ? "Ver detalle" : "Solicitar préstamo"}
           <ArrowRight size={18} />
         </Link>
         <p className="mt-3 text-xs opacity-70">
-          Puedes pedir hasta {pesos(puedePedir)} según lo disponible en el fondo (tope {pesos(d.topePrestamo)}).
+          Puedes pedir hasta {pesos(puedePedir)} según lo disponible en el fondo (tope {pesos(tope)}).
         </p>
       </section>
 
@@ -92,6 +99,25 @@ async function InicioContenido() {
           <Fila icon={CalendarClock} titulo="Próxima reunión" valor={`${fechaCorta(cuenta.proximaReunion)} · 7:30 p. m.`} />
         )}
         <Fila icon={Receipt} titulo="Multas pendientes" valor={pesos(cuenta.multasPendientes)} />
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold">Mis cuotas</h2>
+        {cuenta.historial.map((c) => (
+          <div key={c.periodo} className="flex items-center justify-between rounded-2xl border border-card-border bg-card p-3 text-sm">
+            <div>
+              <p>{mesLargo(c.periodo)}</p>
+              <p className="text-xs text-muted">{pesos(c.total)}</p>
+            </div>
+            <span
+              className={`rounded-full px-2 py-1 text-xs ${
+                c.pagada ? "bg-accent-soft text-accent" : c.vencida ? "text-danger" : "bg-card-border text-muted"
+              }`}
+            >
+              {c.pagada ? "Pagada" : c.vencida ? "En mora" : "Pendiente"}
+            </span>
+          </div>
+        ))}
       </section>
     </div>
   );
