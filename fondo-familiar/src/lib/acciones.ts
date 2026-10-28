@@ -24,12 +24,24 @@ export async function primerIngreso(_: EstadoForm, formData: FormData): Promise<
   if (!CELULAR.test(celular)) return { error: "Escribe tu celular de 10 dígitos." };
 
   const admin = clienteAdmin();
-  const { data: perfil } = await admin
+  const { data: perfil, error: errorConsulta } = await admin
     .from("perfiles")
     .select("id, activo, primer_ingreso_completo")
     .eq("celular", celular)
     .maybeSingle();
 
+  if (errorConsulta) {
+    console.error("primerIngreso: fallo la consulta de perfiles", errorConsulta.message);
+    return { error: "Error del servidor al verificar tu celular. Avisa a un administrador." };
+  }
+  if (!perfil) {
+    // Con una clave sin permisos de administrador, RLS devuelve vacío sin error: se comprueba aparte.
+    const { error: errorClave } = await admin.auth.admin.listUsers({ perPage: 1 });
+    if (errorClave) {
+      console.error("primerIngreso: SUPABASE_SERVICE_ROLE_KEY no es válida", errorClave.message);
+      return { error: "Error de configuración del servidor (clave de administración). Avisa a un administrador." };
+    }
+  }
   if (!perfil || !perfil.activo) return { error: "Ese celular no está registrado en el fondo." };
   if (perfil.primer_ingreso_completo) {
     return { error: "Tu cuenta ya está activada. Ingresa con tu correo y contraseña." };
