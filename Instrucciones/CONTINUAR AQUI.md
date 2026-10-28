@@ -108,3 +108,19 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 3. Subir a GitHub (deploy en Vercel) y probar Primer ingreso en producción.
 4. Agregar celulares de Freddy y Gianni en `/admin/asociados`.
 5. Nota: la cuenta de administrador previa del usuario (correo propio) ya no se necesita; Nicolás entra por Primer ingreso como fiscal.
+
+## Sesión 5 (cierre) — Primer ingreso funcionando en producción
+**Hecho**
+- Cargados los 19 usuarios, perfiles (rol, ciudad, celular) y los 19 turnos de la cadena en Supabase.
+- Primer ingreso por celular funcionando en `fondofamiliar.nitro2tech.com`.
+
+**Lecciones (despliegue)**
+- `SUPABASE_SERVICE_ROLE_KEY` en Vercel es tipo Sensitive: el valor nunca se vuelve a mostrar (el candado es normal). Si falla, borrar la variable y recrearla pegando el valor directo desde `.env.local` (sin comillas ni espacios) y hacer Redeploy.
+- Con la clave pública en lugar de la secreta, las consultas devuelven vacío sin error ("celular no registrado"). Con la clave mal pegada devuelven error ("Error del servidor al verificar tu celular").
+- Cada cambio de variable requiere un Redeploy.
+- `acciones.ts` incluye diagnóstico de clave de servidor (mensaje claro si la clave no es de administrador); ya está subido.
+
+**Pendiente**
+1. Agregar celulares de Freddy Yamá y Gianni Obando en `/admin/asociados`.
+2. Avisar a los 19 que activen su cuenta con "Primer ingreso".
+3. Siguiente fase (Semana 2): cuotas/aportes con registro por tesorero y contador, estado de cuenta real en Inicio, migración del Excel del fondo, captura mensual de la cuenta NU.
