@@ -157,3 +157,18 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 1. Usuario ejecuta `0005` en Supabase y sube a GitHub.
 2. Semana 3 restante: asistencia, multas y juegos; pago de la cadena al receptor del turno; conciliación NU.
 3. Pendiente confirmar fórmula de mora.
+
+## Sesión 6 (cont.) — Semana 3: asistencia, multas y juegos
+**Hecho (código, sin migración nueva; usa tablas de 0001)**
+- `/admin/asistencia`: elegir reunión, marcar puntual/tarde/ausente/justificada por asociado. Al guardar se generan multas: tarde = $5.000; ausente = $8.000 solo si la ciudad es Pasto (las ya pagadas no se tocan; las impagas de esa reunión se regeneran).
+- Juegos en la misma pantalla: recaudo sugerido = suma de la parte de juegos de las cuotas pagadas del mes (editable); 50% premios / 50% utilidad.
+- `/admin/multas`: lista, total pendiente, marcar pagada/deshacer. El Inicio del asociado ya suma sus multas pendientes y le bloquea nuevos préstamos.
+
+**Supuestos**
+- "Sin juegos de esa reunión" para ausentes no se descuenta del recaudo automáticamente (el admin ajusta el monto).
+- Ausencias de residentes fuera de Pasto no generan multa.
+
+**Pendiente**
+1. Subir a GitHub y probar. Falta pagar la cadena al receptor del turno y la conciliación NU (necesita el saldo calculado completo).
+2. Semana 4: calendario real, correos/recordatorios, reportes PDF, pruebas.
+3. Confirmar fórmula de mora y, con el Excel, migrar datos históricos.

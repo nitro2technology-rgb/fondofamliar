@@ -325,3 +325,70 @@ export async function registrarMovimientoPrestamo(formData: FormData) {
   }
   revalidatePath("/admin/prestamos");
 }
+
+// ───────── Asistencia, multas y juegos ─────────
+const ESTADOS_ASISTENCIA = ["puntual", "tarde", "ausente", "justificada"] as const;
+
+// Guarda la asistencia de una reunión y genera las multas que correspondan.
+// Retraso: multa de retraso. Ausencia injustificada: multa solo a residentes en Pasto.
+export async function guardarAsistencia(formData: FormData) {
+  await requerirAdmin();
+  const reunionId = String(formData.get("reunion_id"));
+  const supabase = await crearClienteServidor();
+
+  const [{ data: perfiles }, { data: params }, { data: multasPrevias }] = await Promise.all([
+    supabase.from("perfiles").select("id, ciudad").eq("activo", true),
+    supabase.from("parametros").select("clave, valor").in("clave", ["multa_tarde", "multa_ausencia"]),
+    supabase.from("multas").select("id, asociado_id, pagada").eq("reunion_id", reunionId),
+  ]);
+  const p = Object.fromEntries((params ?? []).map((x) => [x.clave, Number(x.valor)]));
+
+  const asistencias: { reunion_id: string; asociado_id: string; estado: string }[] = [];
+  const nuevasMultas: { asociado_id: string; reunion_id: string; motivo: string; monto: number }[] = [];
+
+  for (const persona of perfiles ?? []) {
+    const estado = String(formData.get(`estado_${persona.id}`) ?? "");
+    if (!(ESTADOS_ASISTENCIA as readonly string[]).includes(estado)) continue;
+    asistencias.push({ reunion_id: reunionId, asociado_id: persona.id, estado });
+
+    // Las multas ya pagadas no se tocan ni se duplican.
+    if ((multasPrevias ?? []).some((m) => m.asociado_id === persona.id && m.pagada)) continue;
+    if (estado === "tarde") {
+      nuevasMultas.push({ asociado_id: persona.id, reunion_id: reunionId, motivo: "Retraso a la reunión", monto: p.multa_tarde ?? 5000 });
+    } else if (estado === "ausente" && persona.ciudad === "Pasto") {
+      nuevasMultas.push({ asociado_id: persona.id, reunion_id: reunionId, motivo: "Inasistencia injustificada", monto: p.multa_ausencia ?? 8000 });
+    }
+  }
+
+  await supabase.from("asistencias").upsert(asistencias, { onConflict: "reunion_id,asociado_id" });
+  await supabase.from("multas").delete().eq("reunion_id", reunionId).eq("pagada", false);
+  if (nuevasMultas.length) await supabase.from("multas").insert(nuevasMultas);
+  revalidatePath("/admin/asistencia");
+  revalidatePath("/admin/multas");
+}
+
+export async function marcarMultaPagada(formData: FormData) {
+  await requerirAdmin();
+  const supabase = await crearClienteServidor();
+  await supabase
+    .from("multas")
+    .update({ pagada: formData.get("pagada") === "si" })
+    .eq("id", String(formData.get("id")));
+  revalidatePath("/admin/multas");
+}
+
+// Resultado de los juegos de una reunión: la mitad del recaudo va a premios y la otra mitad a utilidad.
+export async function guardarJuegos(formData: FormData) {
+  await requerirAdmin();
+  const reunionId = String(formData.get("reunion_id"));
+  const recaudo = montoDe(formData.get("recaudo"));
+  const supabase = await crearClienteServidor();
+  await supabase.from("juegos").delete().eq("reunion_id", reunionId);
+  await supabase.from("juegos").insert({
+    reunion_id: reunionId,
+    recaudo,
+    premios: Math.floor(recaudo / 2),
+    utilidad: recaudo - Math.floor(recaudo / 2),
+  });
+  revalidatePath("/admin/asistencia");
+}

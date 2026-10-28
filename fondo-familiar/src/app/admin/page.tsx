@@ -20,6 +20,8 @@ async function AdminContenido() {
       {[
         ["/admin/prestamos", "Préstamos (votación, desembolsos y pagos)"],
         ["/admin/cuotas", "Cuotas mensuales"],
+        ["/admin/asistencia", "Asistencia y juegos"],
+        ["/admin/multas", "Multas"],
         ["/admin/aportes", "Aportes únicos (inicial y tecnológico)"],
         ["/admin/capturas", "Captura cuenta NU"],
         ["/admin/asociados", "Asociados (celular y ciudad)"],
