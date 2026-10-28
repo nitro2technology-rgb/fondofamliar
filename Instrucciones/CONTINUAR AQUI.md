@@ -44,3 +44,35 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 **Preguntas abiertas**
 - Fórmula exacta del interés sobre interés en mora (provisional).
 - Posible choque del 4% mensual / anatocismo con la tasa de usura colombiana (decisión de reglamento).
+
+## Sesión 3 — 2026-10-28 (Semana 1)
+**Decisiones de diseño (del usuario)**
+- Tema oscuro por defecto con botón para cambiar a claro; acento morado.
+- Inicio del asociado: tarjeta principal = su préstamo vigente y cuánto puede pedir (mín. entre tope $1.000.000 y caja disponible para préstamos); debajo, resumen del resto (ahorro, cuota, cadena, reunión, multas).
+- Admins eligen panel (Mi cuenta / Administración) en un selector tras iniciar sesión.
+
+**Hecho**
+- Proyecto Next.js 16 + Tailwind en `fondo-familiar/` (compila y pasa lint). Instaladas dependencias de Supabase y lucide-react.
+- Pantallas maqueta con datos de ejemplo (`src/lib/mock.ts`): login, elegir-panel, Inicio, Préstamos, Calendario, Perfil, Admin; barra inferior flotante; ThemeToggle.
+- Esquema SQL con RLS y auditoría: `fondo-familiar/supabase/migrations/0001_esquema_base.sql`.
+- Usuario se encarga de git.
+
+**Próximo paso**
+1. Usuario crea proyecto en Supabase y pasa URL + anon key (+ service role en `.env.local`, ver `.env.example`); aplicar la migración.
+2. Conectar login real (Supabase Auth), proteger rutas por rol, reemplazar mock por datos reales.
+3. Cargar los 19 turnos de cadena y perfiles. Luego Semana 2 (cuotas, estado de cuenta, Excel, captura NU).
+4. Pendiente: Excel del fondo; confirmar fórmula de mora con admins.
+
+## Sesión 4 — Login con Supabase
+**Hecho**
+- Migración 0001 ya aplicada por el usuario; conexión verificada (tablas accesibles, RLS devuelve vacío a anónimos).
+- Login real con Supabase Auth (correo + contraseña): `proxy.ts` (refresca sesión y redirige a /login), `lib/supabase/{server,client}.ts`, `lib/auth.ts` (requerirPerfil / requerirAdmin), cierre de sesión, selector de panel solo para admins, Inicio/Perfil con nombre real.
+- Migración `0002_perfil_automatico.sql`: crea el perfil al crearse un usuario (rol asociado por defecto).
+
+**Pendiente del usuario**
+1. Ejecutar 0002 en el SQL Editor de Supabase.
+2. Crear su usuario en Authentication → Users y asignarse rol `fiscal` (SQL al final de 0002).
+3. Desactivar registro público (Authentication → Sign In / Providers → Email → desactivar "Allow new users to sign up").
+
+**Próximo paso**
+- Panel admin para crear los 19 usuarios (usa service role en servidor), cargar cadena de turnos y luego Semana 2 (cuotas, estado de cuenta real, Excel, captura NU).

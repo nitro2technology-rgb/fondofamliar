@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+/* Tema oscuro por defecto; la clase "light" en <html> activa el claro. */
+:root {
+  --background: #0b0b10;
+  --foreground: #f2f2f7;
+  --muted: #9a9aa8;
+  --card: #16161f;
+  --card-border: #26263a;
+  --accent: #8b3df0;
+  --accent-soft: #2a1a4d;
+  --accent-fg: #ffffff;
+  --danger: #ff6b6b;
+  --ok: #4ade80;
+}
+
+:root.light {
+  --background: #f5f4fa;
+  --foreground: #14121f;
+  --muted: #6b6880;
+  --card: #ffffff;
+  --card-border: #e3e0f0;
+  --accent: #7a2ee6;
+  --accent-soft: #efe5ff;
+  --accent-fg: #ffffff;
+  --danger: #d93a3a;
+  --ok: #16a34a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-card: var(--card);
+  --color-card-border: var(--card-border);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-fg: var(--accent-fg);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
