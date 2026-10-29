@@ -4,6 +4,7 @@ import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { marcarMultaPagada } from "@/lib/acciones";
 import { pesos } from "@/lib/format";
+import BotonEnvio from "@/components/BotonEnvio";
 
 export default function Multas() {
   return (
@@ -49,13 +50,13 @@ async function Contenido() {
             <form action={marcarMultaPagada}>
               <input type="hidden" name="id" value={m.id} />
               <input type="hidden" name="pagada" value={m.pagada ? "no" : "si"} />
-              <button
+              <BotonEnvio
                 className={`rounded-xl px-3 py-2 text-xs font-medium ${
                   m.pagada ? "border border-card-border text-muted" : "bg-accent text-accent-fg"
                 }`}
               >
                 {m.pagada ? "Deshacer" : "Marcar pagada"}
-              </button>
+              </BotonEnvio>
             </form>
           </div>
         ))}

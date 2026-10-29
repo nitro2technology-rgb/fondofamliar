@@ -4,6 +4,7 @@ import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { deshacerPagoCuota, registrarPagoCuota } from "@/lib/acciones";
 import { fechaCorta, hoyColombia, mesLargo, pesos } from "@/lib/format";
+import BotonEnvio from "@/components/BotonEnvio";
 
 export default function Cuotas({ searchParams }: PageProps<"/admin/cuotas">) {
   return (
@@ -89,13 +90,13 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/cuo
               </div>
               <form action={pagada ? deshacerPagoCuota : registrarPagoCuota}>
                 <input type="hidden" name="id" value={c.id} />
-                <button
+                <BotonEnvio
                   className={`rounded-xl px-3 py-2 text-xs font-medium ${
                     pagada ? "border border-card-border text-muted" : "bg-accent text-accent-fg"
                   }`}
                 >
                   {pagada ? "Deshacer" : "Registrar pago"}
-                </button>
+                </BotonEnvio>
               </form>
             </div>
           );

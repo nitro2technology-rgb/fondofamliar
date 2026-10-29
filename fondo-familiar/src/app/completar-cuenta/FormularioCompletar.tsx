@@ -14,6 +14,8 @@ export default function FormularioCompletar() {
       <input name="correo" type="email" required autoComplete="email" placeholder="Correo electrónico" className={campo} />
       <input name="clave" type="password" required minLength={8} autoComplete="new-password" placeholder="Nueva contraseña (mín. 8)" className={campo} />
       <input name="confirmar" type="password" required minLength={8} autoComplete="new-password" placeholder="Repite la contraseña" className={campo} />
+      <input name="cuenta_pago" required placeholder="Cuenta o llave para que te hagan los pagos" className={campo} />
+      <p className="px-1 text-xs text-muted">Ej: Nequi 3001234567, llave Bre-B o número de cuenta. La verán quienes deban consignarte la cadena.</p>
       {estado.error && <p className="text-sm text-danger">{estado.error}</p>}
       <button
         disabled={pendiente}

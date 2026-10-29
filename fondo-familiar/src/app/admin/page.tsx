@@ -18,6 +18,7 @@ async function AdminContenido() {
       <h1 className="text-3xl font-bold tracking-tight">Administración</h1>
       <p className="text-muted">Registro y consulta del fondo.</p>
       {[
+        ["/admin/pagos", "Pagos reportados (revisar y aprobar)"],
         ["/admin/prestamos", "Préstamos (votación, desembolsos y pagos)"],
         ["/admin/cuotas", "Cuotas mensuales"],
         ["/admin/cadena", "Cadena (entrega del turno)"],

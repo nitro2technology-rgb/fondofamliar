@@ -4,6 +4,7 @@ import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { deshacerEntregaCadena, registrarEntregaCadena } from "@/lib/acciones";
 import { fechaCorta, pesos } from "@/lib/format";
+import BotonEnvio from "@/components/BotonEnvio";
 
 export default function Cadena() {
   return (
@@ -52,13 +53,13 @@ async function Contenido() {
               <form action={entrega ? deshacerEntregaCadena : registrarEntregaCadena}>
                 <input type="hidden" name="turno" value={t.turno} />
                 <input type="hidden" name="monto" value={recaudado} />
-                <button
+                <BotonEnvio
                   className={`rounded-xl px-3 py-2 text-xs font-medium ${
                     entrega ? "border border-card-border text-muted" : "bg-accent text-accent-fg"
                   }`}
                 >
                   {entrega ? "Deshacer" : "Registrar entrega"}
-                </button>
+                </BotonEnvio>
               </form>
             </div>
           );

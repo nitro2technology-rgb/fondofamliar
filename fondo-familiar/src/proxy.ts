@@ -7,6 +7,9 @@ const PUBLICAS = ["/login", "/primer-ingreso"];
 // Refresca la sesión de Supabase y envía a /login a quien no haya iniciado sesión.
 // La autorización real por rol se verifica en el servidor (lib/auth.ts) y en la base de datos (RLS).
 export async function proxy(request: NextRequest) {
+  // El cron de Vercel no tiene sesión; la ruta se protege con CRON_SECRET.
+  if (request.nextUrl.pathname === "/api/mantener-activo") return NextResponse.next();
+
   let respuesta = NextResponse.next({ request });
 
   const supabase = createServerClient(

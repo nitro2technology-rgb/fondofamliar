@@ -17,7 +17,7 @@ async function Contenido() {
   const supabase = await crearClienteServidor();
   const { data } = await supabase
     .from("perfiles")
-    .select("id, nombre, rol, celular, ciudad, primer_ingreso_completo")
+    .select("id, nombre, rol, celular, ciudad, cuenta_pago, primer_ingreso_completo")
     .order("nombre");
 
   return (
@@ -26,7 +26,7 @@ async function Contenido() {
         ← Administración
       </Link>
       <h1 className="text-3xl font-bold tracking-tight">Asociados</h1>
-      <p className="text-sm text-muted">Edita el celular y la ciudad de cada asociado.</p>
+      <p className="text-sm text-muted">Edita el celular, la ciudad y la cuenta de pagos de cada asociado.</p>
       <datalist id="ciudades">
         {["Pasto", "Bogotá", "Villavicencio", "Otro"].map((c) => (
           <option key={c} value={c} />

@@ -9,6 +9,7 @@ type Asociado = {
   rol: string;
   celular: string | null;
   ciudad: string | null;
+  cuenta_pago: string | null;
   primer_ingreso_completo: boolean;
 };
 
@@ -37,6 +38,7 @@ export default function FilaAsociado({ asociado: a }: { asociado: Asociado }) {
         <input type="hidden" name="id" value={a.id} />
         <input name="celular" type="tel" inputMode="numeric" defaultValue={a.celular ?? ""} placeholder="Celular" className={campo} />
         <input name="ciudad" list="ciudades" defaultValue={a.ciudad ?? ""} placeholder="Ciudad" className={campo} />
+        <input name="cuenta_pago" defaultValue={a.cuenta_pago ?? ""} placeholder="Cuenta o llave para recibir pagos" className={campo} />
         <div className="flex items-center gap-3">
           <button disabled={pendiente} className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-fg disabled:opacity-60">
             {pendiente ? "Guardando…" : "Guardar"}

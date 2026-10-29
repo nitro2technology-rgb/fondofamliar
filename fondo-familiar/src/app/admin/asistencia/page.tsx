@@ -2,8 +2,10 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
-import { guardarAsistencia, guardarJuegos } from "@/lib/acciones";
+import { guardarJuegos } from "@/lib/acciones";
 import { fechaCorta, hoyColombia, mesLargo, pesos } from "@/lib/format";
+import BotonEnvio from "@/components/BotonEnvio";
+import FormularioAsistencia from "./FormularioAsistencia";
 
 export default function Asistencia({ searchParams }: PageProps<"/admin/asistencia">) {
   return (
@@ -12,13 +14,6 @@ export default function Asistencia({ searchParams }: PageProps<"/admin/asistenci
     </Suspense>
   );
 }
-
-const ESTADOS = [
-  ["puntual", "Puntual"],
-  ["tarde", "Tarde"],
-  ["ausente", "Ausente"],
-  ["justificada", "Justificada"],
-] as const;
 
 const campo =
   "w-full rounded-xl border border-card-border bg-background px-3 py-2 text-sm outline-none focus:border-accent";
@@ -75,30 +70,12 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/asi
       </div>
       <p className="text-sm text-muted">Reunión del {fechaCorta(elegida.fecha)}. Retraso y ausencia generan multa automática.</p>
 
-      <form action={guardarAsistencia} className="space-y-2">
-        <input type="hidden" name="reunion_id" value={elegida.id} />
-        {(perfiles ?? []).map((p) => (
-          <div key={p.id} className="flex items-center gap-3 rounded-2xl border border-card-border bg-card p-3">
-            <div className="flex-1">
-              <p className="text-sm font-medium">{p.nombre}</p>
-              {p.ciudad && <p className="text-xs text-muted">{p.ciudad}</p>}
-            </div>
-            <select
-              name={`estado_${p.id}`}
-              defaultValue={(asistencias ?? []).find((a) => a.asociado_id === p.id)?.estado ?? ""}
-              className="rounded-xl border border-card-border bg-background px-2 py-2 text-sm"
-            >
-              <option value="">—</option>
-              {ESTADOS.map(([valor, texto]) => (
-                <option key={valor} value={valor}>
-                  {texto}
-                </option>
-              ))}
-            </select>
-          </div>
-        ))}
-        <button className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-medium text-accent-fg">Guardar asistencia</button>
-      </form>
+      <FormularioAsistencia
+        key={elegida.id}
+        reunionId={elegida.id}
+        personas={perfiles ?? []}
+        guardados={Object.fromEntries((asistencias ?? []).map((a) => [a.asociado_id, a.estado]))}
+      />
 
       <form action={guardarJuegos} className="space-y-3 rounded-2xl border border-card-border bg-card p-4">
         <input type="hidden" name="reunion_id" value={elegida.id} />
@@ -112,7 +89,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/asi
             Guardado: premios {pesos(Number(juegos.premios))} · utilidad {pesos(Number(juegos.utilidad))}
           </p>
         )}
-        <button className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-fg">Guardar juegos</button>
+        <BotonEnvio className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-fg">Guardar juegos</BotonEnvio>
       </form>
     </main>
   );

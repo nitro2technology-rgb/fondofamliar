@@ -4,6 +4,7 @@ import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { hoyColombia, mesLargo, pesos } from "@/lib/format";
 import FormularioCaptura from "./FormularioCaptura";
+import TarjetaCaptura from "./TarjetaCaptura";
 
 export default function Capturas() {
   return (
@@ -40,27 +41,30 @@ async function Contenido() {
       <p className="text-sm text-muted">Una captura por mes (Art. 8). Solo la ven los administradores.</p>
       <FormularioCaptura mesActual={hoyColombia().slice(0, 7)} />
       <div className="space-y-2">
-        {capturas.map((c) => (
-          <div key={c.periodo} className="flex items-center justify-between rounded-2xl border border-card-border bg-card p-3">
-            <div>
-              <p className="text-sm font-medium">{mesLargo(c.periodo)}</p>
-              {c.saldo_declarado != null && <p className="text-xs text-muted">NU: {pesos(Number(c.saldo_declarado))}</p>}
-              {c.calculado != null && <p className="text-xs text-muted">App: {pesos(c.calculado)}</p>}
-              {c.saldo_declarado != null && c.calculado != null && (
-                <p className={`text-xs font-medium ${Number(c.saldo_declarado) === c.calculado ? "text-ok" : "text-danger"}`}>
-                  {Number(c.saldo_declarado) === c.calculado
+        {capturas.map((c) => {
+          const declarado = c.saldo_declarado == null ? null : Number(c.saldo_declarado);
+          const comparable = declarado != null && c.calculado != null;
+          return (
+            <TarjetaCaptura
+              key={c.periodo}
+              c={{
+                periodo: c.periodo,
+                mes: mesLargo(c.periodo),
+                url: c.url ?? null,
+                saldoDeclarado: declarado,
+                calculado: c.calculado,
+                textoNu: declarado != null ? pesos(declarado) : null,
+                textoApp: c.calculado != null ? pesos(c.calculado) : null,
+                textoDiferencia: comparable
+                  ? declarado === c.calculado
                     ? "Cuadra"
-                    : `Diferencia: ${pesos(Number(c.saldo_declarado) - c.calculado)}`}
-                </p>
-              )}
-            </div>
-            {c.url && (
-              <a href={c.url} target="_blank" rel="noreferrer" className="text-sm text-accent underline">
-                Ver
-              </a>
-            )}
-          </div>
-        ))}
+                    : `Diferencia: ${pesos(declarado - c.calculado!)}`
+                  : null,
+                cuadra: comparable && declarado === c.calculado,
+              }}
+            />
+          );
+        })}
       </div>
     </main>
   );

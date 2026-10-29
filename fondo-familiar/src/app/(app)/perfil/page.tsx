@@ -3,6 +3,8 @@ import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import { esAdmin, requerirPerfil } from "@/lib/auth";
 import { cerrarSesion } from "@/lib/acciones";
+import { crearClienteServidor } from "@/lib/supabase/server";
+import FormularioCuenta from "./FormularioCuenta";
 
 const etiquetaRol = {
   asociado: "Asociado",
@@ -21,6 +23,8 @@ export default function Perfil() {
 
 async function PerfilContenido() {
   const perfil = await requerirPerfil();
+  const supabase = await crearClienteServidor();
+  const { data: extra } = await supabase.from("perfiles").select("cuenta_pago").eq("id", perfil.id).maybeSingle();
 
   return (
     <div className="space-y-6">
@@ -30,6 +34,7 @@ async function PerfilContenido() {
         <p className="text-sm text-muted">{perfil.correo}</p>
         <p className="text-sm text-muted">{etiquetaRol[perfil.rol]}</p>
       </div>
+      <FormularioCuenta actual={extra?.cuenta_pago ?? ""} />
       <div className="flex items-center justify-between rounded-2xl border border-card-border bg-card p-4">
         <span>Tema claro / oscuro</span>
         <ThemeToggle />

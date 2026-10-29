@@ -5,6 +5,7 @@ import { pesos, fechaCorta, mesLargo } from "@/lib/format";
 import { estadoDeCuenta, resumenPrestamo } from "@/lib/cuentas";
 import { Suspense } from "react";
 import { requerirPerfil } from "@/lib/auth";
+import { crearClienteServidor } from "@/lib/supabase/server";
 
 export default function Inicio() {
   return (
@@ -20,6 +21,11 @@ async function InicioContenido() {
     estadoDeCuenta(perfil.id),
     resumenPrestamo(perfil.id),
   ]);
+  const { data: extra } = await (await crearClienteServidor())
+    .from("perfiles")
+    .select("cuenta_pago")
+    .eq("id", perfil.id)
+    .maybeSingle();
   const vigente = prestamo?.estado === "vigente" ? prestamo : null;
 
   return (
@@ -31,6 +37,12 @@ async function InicioContenido() {
         </div>
         <ThemeToggle />
       </header>
+
+      {extra && !extra.cuenta_pago && (
+        <Link href="/perfil" className="block rounded-2xl border border-danger p-4 text-sm">
+          Falta registrar tu <span className="font-semibold">cuenta o llave para recibir pagos</span>. Toca aquí para agregarla.
+        </Link>
+      )}
 
       {/* Tarjeta principal: préstamo vigente y cuánto puede pedir */}
       <section className="rounded-3xl bg-gradient-to-br from-accent to-[#4a1d99] p-6 text-accent-fg shadow-lg">
@@ -86,6 +98,15 @@ async function InicioContenido() {
           />
         ) : (
           <Fila icon={Receipt} titulo="Cuota mensual" valor="Al día" />
+        )}
+        {cuenta.cuota && (
+          <Link
+            href="/pagos"
+            className="flex items-center justify-between rounded-2xl bg-accent px-4 py-3 text-sm font-medium text-accent-fg"
+          >
+            Registrar pago y captura
+            <ArrowRight size={18} />
+          </Link>
         )}
         {cuenta.miTurno && (
           <Fila

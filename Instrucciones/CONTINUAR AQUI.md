@@ -209,3 +209,26 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 2. Usuario: entregar el Excel del fondo (migrar pagos históricos) y avisar a los 19 asociados que activen su cuenta con "Primer ingreso" cuando todo esté listo.
 3. **Semana 4**: Calendario real (cuotas, reuniones, turno de cadena, vencimientos); correos y recordatorios con Resend (confirmar que el dominio esté verificado) y crons; reportes/PDF por asociado; cierre de ciclo (liquidación, utilidades en partes iguales entre los 19); pruebas; Perfil real.
 4. Notas técnicas: en Windows el `git push` a veces tarda >2 min (reintentar); el usuario ya aprobó commit/push directo en esta sesión.
+
+## Sesión 7 — Pagos con comprobante, asistencia ágil, capturas editables
+**Hecho (código, sin subir aún; compila y pasa lint)**
+- Migración `0007_pagos_reportados.sql`: tabla `pagos_reportados` (tipo fondo/cadena, estado pendiente/aprobado/rechazado), bucket privado `comprobantes-pago`, índice único de multa por (reunión, asociado), política para borrar capturas NU.
+- Asociado: `/pagos` ("Registrar pago y captura", botón en Inicio): sube comprobante del pago al fondo (ahorro+juegos) y de la cadena (a quien tiene el turno); puede reemplazarlo si lo rechazan.
+- Admin: `/admin/pagos` (por mes, lista de quién envió, Ver/Aprobar/Rechazar/Deshacer). Cuando fondo (+ cadena si aplica) están aprobados, la cuota pasa a "pagada" sola.
+- Asistencia: todos arrancan "Puntual"; botones Puntual/Tarde/Ausente/Excusa; guardado optimista, botón deshabilitado, idempotente (no duplica multas).
+- Capturas NU: editar saldo/imagen, eliminar, visor flotante con X, compresión automática (JPEG, máx. 2000 px). Misma compresión en comprobantes de pago.
+- `BotonEnvio` (anti doble clic) en cuotas, multas, cadena y juegos.
+
+**Pendiente**
+1. Ejecutar `0007` en Supabase (proyecto correcto) y subir a GitHub.
+2. Decidir contabilidad de la cadena: si se paga directo al receptor, no pasa por la cuenta NU y `saldo_calculado` (0006) debe dejar de contarla.
+
+## Sesión 7 (cont.) — Cuenta de pagos y cron anti-pausa
+**Hecho (código)**
+- Migración `0008_cuenta_pago.sql`: `perfiles.cuenta_pago` y función `beneficiario_cadena(periodo)` (entrega nombre y cuenta de quien tiene el turno solo a quien tiene cuota ese mes o a un admin).
+- "Completar cuenta" pide "Cuenta o llave para que te hagan los pagos"; editable en Perfil y por admins en `/admin/asociados`; banner en Inicio si falta. `/pagos` muestra la cuenta del beneficiario en la tarjeta de cadena.
+- Cron diario `vercel.json` -> `/api/mantener-activo` (consulta mínima a Supabase para que no se pause). Opcional: variable `CRON_SECRET` en Vercel (si existe, el endpoint la exige).
+
+**Pendiente**
+1. Ejecutar `0007` y `0008` en Supabase ANTES de usar el despliegue (sin `0008` falla "Completar cuenta" y el guardado de asociados).
+2. Los 19 deben registrar su cuenta (Perfil). Definir control de entrega de cadena (propuesta pendiente de decisión) y ajustar `saldo_calculado` si la cadena va directa al receptor.

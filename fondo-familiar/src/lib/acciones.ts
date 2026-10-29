@@ -76,10 +76,12 @@ export async function completarCuenta(_: EstadoForm, formData: FormData): Promis
   const correo = String(formData.get("correo") ?? "").trim().toLowerCase();
   const clave = String(formData.get("clave") ?? "");
   const confirmar = String(formData.get("confirmar") ?? "");
+  const cuentaPago = String(formData.get("cuenta_pago") ?? "").trim().slice(0, 120);
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) return { error: "Escribe un correo válido." };
   if (clave.length < 8) return { error: "La contraseña debe tener al menos 8 caracteres." };
   if (clave !== confirmar) return { error: "Las contraseñas no coinciden." };
+  if (cuentaPago.length < 3) return { error: "Escribe la cuenta o llave donde recibirás tus pagos." };
 
   const admin = clienteAdmin();
   const { data: perfil } = await admin
@@ -103,9 +105,23 @@ export async function completarCuenta(_: EstadoForm, formData: FormData): Promis
     };
   }
 
-  await admin.from("perfiles").update({ correo, primer_ingreso_completo: true }).eq("id", user.id);
+  await admin.from("perfiles").update({ correo, cuenta_pago: cuentaPago, primer_ingreso_completo: true }).eq("id", user.id);
   await supabase.auth.signInWithPassword({ email: correo, password: clave });
   redirect("/elegir-panel");
+}
+
+// Cuenta o llave donde el asociado recibe sus pagos (la ven quienes deben consignarle).
+export async function guardarCuentaPago(_: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const perfil = await requerirPerfil();
+  const cuenta = String(formData.get("cuenta_pago") ?? "").trim().slice(0, 120);
+  if (cuenta.length < 3) return { error: "Escribe tu cuenta o llave." };
+
+  // Los asociados no tienen permiso de escritura sobre perfiles; se actualiza solo su propia fila.
+  const { error } = await clienteAdmin().from("perfiles").update({ cuenta_pago: cuenta }).eq("id", perfil.id);
+  if (error) return { error: "No se pudo guardar. Intenta de nuevo." };
+  revalidatePath("/perfil");
+  revalidatePath("/");
+  return { ok: true };
 }
 
 // ───────── Panel de administración ─────────
@@ -116,11 +132,12 @@ export async function actualizarAsociado(_: EstadoForm, formData: FormData): Pro
   const celularTexto = String(formData.get("celular") ?? "").trim();
   const celular = celularTexto ? limpiarCelular(celularTexto) : null;
   const ciudad = String(formData.get("ciudad") ?? "").trim() || null;
+  const cuentaPago = String(formData.get("cuenta_pago") ?? "").trim().slice(0, 120) || null;
 
   if (celular && !CELULAR.test(celular)) return { error: "Celular de 10 dígitos que empiece por 3." };
 
   const supabase = await crearClienteServidor();
-  const { error } = await supabase.from("perfiles").update({ celular, ciudad }).eq("id", id);
+  const { error } = await supabase.from("perfiles").update({ celular, ciudad, cuenta_pago: cuentaPago }).eq("id", id);
   if (error) {
     return { error: error.code === "23505" ? "Ese celular ya lo tiene otro asociado." : "No se pudo guardar." };
   }
@@ -199,6 +216,11 @@ export async function subirCaptura(_: EstadoForm, formData: FormData): Promise<E
   if (archivo.size > 8 * 1024 * 1024) return { error: "La imagen pesa más de 8 MB." };
 
   const supabase = await crearClienteServidor();
+  const { data: previa } = await supabase
+    .from("capturas_cuenta")
+    .select("ruta_archivo")
+    .eq("periodo", `${mes}-01`)
+    .maybeSingle();
   const ruta = `${mes}/${Date.now()}-${archivo.name.replace(/[^\w.-]/g, "_")}`;
   const { error: errorSubida } = await supabase.storage.from("capturas-nu").upload(ruta, archivo);
   if (errorSubida) return { error: "No se pudo subir la imagen." };
@@ -214,7 +236,167 @@ export async function subirCaptura(_: EstadoForm, formData: FormData): Promise<E
     { onConflict: "periodo" },
   );
   if (error) return { error: "No se pudo guardar el registro." };
+  if (previa?.ruta_archivo) await supabase.storage.from("capturas-nu").remove([previa.ruta_archivo]);
   revalidatePath("/admin/capturas");
+  return { ok: true };
+}
+
+// Corrige una captura ya subida: cambia el saldo declarado y, si se adjunta, reemplaza la imagen.
+export async function editarCaptura(_: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const admin = await requerirAdmin();
+  const periodo = String(formData.get("periodo") ?? "");
+  const archivo = formData.get("archivo");
+  const saldoTexto = String(formData.get("saldo") ?? "").replace(/\D/g, "");
+  if (!/^\d{4}-\d{2}-01$/.test(periodo)) return { error: "Captura no válida." };
+
+  const supabase = await crearClienteServidor();
+  const { data: previa } = await supabase.from("capturas_cuenta").select("ruta_archivo").eq("periodo", periodo).maybeSingle();
+  if (!previa) return { error: "La captura ya no existe." };
+
+  const cambios: Record<string, unknown> = {
+    saldo_declarado: saldoTexto ? Number(saldoTexto) : null,
+    subido_por: admin.id,
+  };
+  let rutaNueva: string | null = null;
+  if (archivo instanceof File && archivo.size > 0) {
+    if (!archivo.type.startsWith("image/")) return { error: "El archivo debe ser una imagen." };
+    if (archivo.size > 8 * 1024 * 1024) return { error: "La imagen pesa más de 8 MB." };
+    rutaNueva = `${periodo.slice(0, 7)}/${Date.now()}-${archivo.name.replace(/[^\w.-]/g, "_")}`;
+    const { error: errorSubida } = await supabase.storage.from("capturas-nu").upload(rutaNueva, archivo);
+    if (errorSubida) return { error: "No se pudo subir la imagen." };
+    cambios.ruta_archivo = rutaNueva;
+    cambios.subido_en = new Date().toISOString();
+  }
+
+  const { error } = await supabase.from("capturas_cuenta").update(cambios).eq("periodo", periodo);
+  if (error) return { error: "No se pudo guardar el cambio." };
+  if (rutaNueva) await supabase.storage.from("capturas-nu").remove([previa.ruta_archivo]);
+  revalidatePath("/admin/capturas");
+  return { ok: true };
+}
+
+export async function eliminarCaptura(periodo: string): Promise<EstadoForm> {
+  await requerirAdmin();
+  const supabase = await crearClienteServidor();
+  const { data: previa } = await supabase.from("capturas_cuenta").select("ruta_archivo").eq("periodo", periodo).maybeSingle();
+  if (!previa) return { ok: true };
+  const { error } = await supabase.from("capturas_cuenta").delete().eq("periodo", periodo);
+  if (error) return { error: "No se pudo eliminar." };
+  await supabase.storage.from("capturas-nu").remove([previa.ruta_archivo]);
+  revalidatePath("/admin/capturas");
+  return { ok: true };
+}
+
+// ───────── Pagos reportados por los asociados ─────────
+// El asociado sube el comprobante de lo que pagó (al fondo y/o a quien tiene la cadena ese mes).
+export async function reportarPago(_: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const perfil = await requerirPerfil();
+  const cuotaId = String(formData.get("cuota_id") ?? "");
+  const tipo = String(formData.get("tipo") ?? "");
+  const archivo = formData.get("archivo");
+
+  if (tipo !== "fondo" && tipo !== "cadena") return { error: "Tipo de pago no válido." };
+  if (!(archivo instanceof File) || archivo.size === 0) return { error: "Adjunta la captura del pago." };
+  if (!archivo.type.startsWith("image/")) return { error: "El archivo debe ser una imagen." };
+  if (archivo.size > 8 * 1024 * 1024) return { error: "La imagen pesa más de 8 MB." };
+
+  const supabase = await crearClienteServidor();
+  const { data: cuota } = await supabase
+    .from("cuotas")
+    .select("id, ahorro, cadena, juegos, estado")
+    .eq("id", cuotaId)
+    .eq("asociado_id", perfil.id)
+    .maybeSingle();
+  if (!cuota) return { error: "No se encontró la cuota." };
+  if (cuota.estado === "pagada") return { error: "Esta cuota ya está registrada como pagada." };
+
+  const monto = tipo === "fondo" ? Number(cuota.ahorro) + Number(cuota.juegos) : Number(cuota.cadena);
+  if (monto <= 0) return { error: "Este mes no tienes que pagar esa parte." };
+
+  const { data: previo } = await supabase
+    .from("pagos_reportados")
+    .select("estado, ruta_archivo")
+    .eq("cuota_id", cuotaId)
+    .eq("tipo", tipo)
+    .maybeSingle();
+  if (previo?.estado === "aprobado") return { error: "Este pago ya fue aprobado." };
+
+  const ruta = `${perfil.id}/${cuotaId}-${tipo}-${Date.now()}.jpg`;
+  const { error: errorSubida } = await supabase.storage.from("comprobantes-pago").upload(ruta, archivo);
+  if (errorSubida) return { error: "No se pudo subir la imagen." };
+
+  const { error } = await supabase.from("pagos_reportados").upsert(
+    {
+      cuota_id: cuotaId,
+      asociado_id: perfil.id,
+      tipo,
+      monto,
+      ruta_archivo: ruta,
+      estado: "pendiente",
+      nota: null,
+      creado_en: new Date().toISOString(),
+      revisado_por: null,
+      revisado_en: null,
+    },
+    { onConflict: "cuota_id,tipo" },
+  );
+  if (error) {
+    await supabase.storage.from("comprobantes-pago").remove([ruta]);
+    return { error: "No se pudo registrar el pago." };
+  }
+  if (previo?.ruta_archivo) await supabase.storage.from("comprobantes-pago").remove([previo.ruta_archivo]);
+  revalidatePath("/pagos");
+  revalidatePath("/admin/pagos");
+  return { ok: true };
+}
+
+// Un administrador aprueba, rechaza o reabre un pago reportado. Cuando el fondo y (si corresponde)
+// la cadena de la cuota están aprobados, la cuota pasa a pagada y cambia el estado de cuenta.
+export async function revisarPago(
+  id: string,
+  decision: "aprobado" | "rechazado" | "pendiente",
+  nota?: string,
+): Promise<EstadoForm> {
+  const admin = await requerirAdmin();
+  if (!["aprobado", "rechazado", "pendiente"].includes(decision)) return { error: "Decisión no válida." };
+  const supabase = await crearClienteServidor();
+
+  const { data: pago } = await supabase.from("pagos_reportados").select("cuota_id, estado").eq("id", id).maybeSingle();
+  if (!pago) return { error: "El pago ya no existe." };
+
+  const { error } = await supabase
+    .from("pagos_reportados")
+    .update({
+      estado: decision,
+      nota: decision === "rechazado" ? (nota ?? "").trim().slice(0, 200) || null : null,
+      revisado_por: decision === "pendiente" ? null : admin.id,
+      revisado_en: decision === "pendiente" ? null : new Date().toISOString(),
+    })
+    .eq("id", id);
+  if (error) return { error: "No se pudo guardar la revisión." };
+
+  const [{ data: cuota }, { data: pagos }] = await Promise.all([
+    supabase.from("cuotas").select("cadena, estado").eq("id", pago.cuota_id).single(),
+    supabase.from("pagos_reportados").select("tipo, estado").eq("cuota_id", pago.cuota_id),
+  ]);
+  const aprobado = (t: string) => (pagos ?? []).some((x) => x.tipo === t && x.estado === "aprobado");
+  const completa = aprobado("fondo") && (Number(cuota?.cadena ?? 0) === 0 || aprobado("cadena"));
+
+  if (completa && cuota?.estado !== "pagada") {
+    await supabase
+      .from("cuotas")
+      .update({ estado: "pagada", fecha_pago: hoyColombia(), registrado_por: admin.id })
+      .eq("id", pago.cuota_id);
+  } else if (!completa && pago.estado === "aprobado" && cuota?.estado === "pagada") {
+    await supabase
+      .from("cuotas")
+      .update({ estado: "pendiente", fecha_pago: null, registrado_por: admin.id })
+      .eq("id", pago.cuota_id);
+  }
+  revalidatePath("/admin/pagos");
+  revalidatePath("/admin/cuotas");
+  revalidatePath("/pagos");
+  revalidatePath("/");
   return { ok: true };
 }
 
@@ -331,9 +513,9 @@ const ESTADOS_ASISTENCIA = ["puntual", "tarde", "ausente", "justificada"] as con
 
 // Guarda la asistencia de una reunión y genera las multas que correspondan.
 // Retraso: multa de retraso. Ausencia injustificada: multa solo a residentes en Pasto.
-export async function guardarAsistencia(formData: FormData) {
+// Es idempotente: repetirla (doble clic, dos admins) no duplica multas gracias al índice único.
+export async function guardarAsistencia(reunionId: string, estados: Record<string, string>): Promise<EstadoForm> {
   await requerirAdmin();
-  const reunionId = String(formData.get("reunion_id"));
   const supabase = await crearClienteServidor();
 
   const [{ data: perfiles }, { data: params }, { data: multasPrevias }] = await Promise.all([
@@ -347,7 +529,7 @@ export async function guardarAsistencia(formData: FormData) {
   const nuevasMultas: { asociado_id: string; reunion_id: string; motivo: string; monto: number }[] = [];
 
   for (const persona of perfiles ?? []) {
-    const estado = String(formData.get(`estado_${persona.id}`) ?? "");
+    const estado = String(estados[persona.id] ?? "");
     if (!(ESTADOS_ASISTENCIA as readonly string[]).includes(estado)) continue;
     asistencias.push({ reunion_id: reunionId, asociado_id: persona.id, estado });
 
@@ -360,11 +542,15 @@ export async function guardarAsistencia(formData: FormData) {
     }
   }
 
-  await supabase.from("asistencias").upsert(asistencias, { onConflict: "reunion_id,asociado_id" });
+  const { error } = await supabase.from("asistencias").upsert(asistencias, { onConflict: "reunion_id,asociado_id" });
+  if (error) return { error: "No se pudo guardar la asistencia." };
   await supabase.from("multas").delete().eq("reunion_id", reunionId).eq("pagada", false);
-  if (nuevasMultas.length) await supabase.from("multas").insert(nuevasMultas);
+  if (nuevasMultas.length) {
+    await supabase.from("multas").upsert(nuevasMultas, { onConflict: "reunion_id,asociado_id", ignoreDuplicates: true });
+  }
   revalidatePath("/admin/asistencia");
   revalidatePath("/admin/multas");
+  return { ok: true };
 }
 
 export async function marcarMultaPagada(formData: FormData) {
