@@ -185,7 +185,7 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 1. Ejecutar `0006` en Supabase y subir a GitHub.
 2. Semana 4: calendario real, correos/recordatorios (Resend), reportes PDF, pruebas, cierre de ciclo.
 
-## ESTADO ACTUAL (cierre de sesión 6) — leer esto primero
+## (Histórico) Estado al cierre de la sesión 6 — superado por el ESTADO ACTUAL del final
 **Semanas 1–3 completas en código y subidas a GitHub** (último commit `38a678d`). Producción: `fondofamiliar.nitro2tech.com` (Vercel despliega al hacer push).
 
 **Migraciones SQL (carpeta `fondo-familiar/supabase/migrations/`)**
@@ -251,3 +251,36 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - Errores claros al subir: falta imagen, archivo no es imagen, imagen muy pesada; ayuda "¿No logras subirlo? Envíaselo a un administrador".
 - Para el receptor, una cuota pagada sin comprobante NO cuenta como confirmada.
 - Migraciones ejecutadas por el usuario: 0007, 0008, 0009. **Falta 0010.** Al migrar el Excel histórico habrá que cargar esos pagos sin comprobante de otra forma.
+
+## ESTADO ACTUAL (cierre de sesión 7, 2026-10-29) — LEER ESTO PRIMERO
+
+**Producción**: `fondofamiliar.nitro2tech.com` (Vercel despliega con cada push a `main`). Último commit subido: `5d7e4d3`. Las especificaciones de uso y técnicas (v2) están al día con todo lo construido.
+
+**Qué hay construido**
+- Semanas 1–3 completas: login (primer ingreso por celular), cuotas, estado de cuenta, aportes únicos, captura NU con conciliación, préstamos (cola, votación 2/3, desembolso, interés fijo 4%, mora provisional), asistencia (todos "puntual" por defecto), multas, juegos.
+- Sesión 7: pagos con comprobante (fondo y cadena), aprobación de admins, confirmación del receptor de la cadena (`/recibos` + ventana emergente), cuenta o llave para recibir pagos, capturas NU editables con visor flotante y compresión, botones anti doble clic, cron diario anti-pausa de Supabase, "Copiar lista de pendientes" para WhatsApp.
+- Reglas vigentes: la cadena se paga directo al receptor (fuera de la cuenta NU); una cuota solo queda pagada con comprobantes aprobados (fondo + cadena si aplica); el pago de cadena lo confirma el receptor **o** un admin; si alguien no sabe subir, el admin carga el comprobante; `/admin/cuotas` es solo consulta.
+
+**Migraciones SQL**: 0001–0009 ejecutadas por el usuario. **0010 (`pagos_reportados.subido_por`) PENDIENTE de ejecutar**: sin ella falla el envío de comprobantes (asociado y admin).
+
+**Pendiente — usuario (antes de seguir)**
+1. Ejecutar `0010_comprobante_cargado_por.sql` en el SQL Editor (proyecto correcto de Supabase).
+2. Variable `CRON_SECRET` en Vercel (texto largo aleatorio) + Redeploy, para proteger el cron `/api/mantener-activo` (opcional pero recomendado).
+3. Probar de punta a punta en producción: subir comprobantes como asociado → aprobar en `/admin/pagos` → confirmar como receptor en `/recibos` → ver la cuota pagada en Inicio; asistencia/multas; captura NU y conciliación; préstamo completo (solicitud → votos → desembolso → interés/abono). Revertir a mano en el SQL Editor lo que sea de prueba (cuotas marcadas a mano antes quedan pagadas sin comprobante).
+4. Agregar celulares de Freddy Yamá y Gianni Obando en `/admin/asociados`; pedir a los 19 que activen su cuenta con "Primer ingreso" y registren su cuenta o llave de pagos.
+5. Entregar el Excel del fondo (migración de pagos históricos; esos meses no tendrán comprobantes, hay que decidir cómo cargarlos).
+6. Confirmar con los directivos: fórmula de mora (provisional, 4% mensual sobre cada interés vencido y no pagado), definición de ahorro acumulado y caja prestable, premios de juegos pagados en la reunión, multa de ausencia solo en Pasto, y el riesgo de usura del 4% mensual.
+
+**Pendiente — desarrollo (Semana 4, orden sugerido)**
+1. Calendario real (cuotas, reuniones, turno de cadena, vencimientos) y Perfil completo (hoy Calendario es maqueta).
+2. Correos y recordatorios con Resend (verificar dominio) + crons: cuota próxima/mora, nuevas solicitudes de préstamo, recordatorio de reunión.
+3. Cobro automático de interés de mora y causación mensual de intereses si se decide automatizar (hoy el admin registra pagos).
+4. Reportes: estado de cuenta en PDF por asociado, cartera vigente y en mora, historial.
+5. Cierre de ciclo: reunión de liquidación (último turno 12-may-2028), bloqueo mientras haya préstamos vigentes, liquidación por asociado = ahorro + utilidades ÷ 19.
+6. Respaldo: exportación periódica de la base (Supabase gratis no trae respaldos diarios).
+7. Limpieza: la tabla `entregas_cadena` quedó en desuso; las pruebas end-to-end y pulido móvil/PWA (instalable).
+
+**Notas técnicas**
+- La app está en `fondo-familiar/` (Next.js 16, `cacheComponents`, `proxy.ts`); las especificaciones y esta bitácora en `Instrucciones/`. En Windows el `git push` a veces tarda >2 min (reintentar). Los archivos del repo usan CRLF en parte; al editar con scripts conservar los saltos de línea.
+- Si falla algo tras un deploy: ¿se ejecutó la migración correspondiente en el proyecto correcto de Supabase? ¿Se hizo Redeploy tras cambiar variables?
+- Commits: terminan con la línea `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`. El usuario pide el commit/push explícitamente cada vez.
