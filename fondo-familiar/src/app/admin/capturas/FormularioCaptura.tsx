@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useState, type FormEvent } from "react";
 import { subirCaptura, type EstadoForm } from "@/lib/acciones";
-import { datosConImagenComprimida } from "@/lib/comprimir";
+import { datosConImagenComprimida, errorDeArchivo } from "@/lib/comprimir";
 
 const campo =
   "w-full rounded-xl border border-card-border bg-background px-3 py-2 text-sm outline-none focus:border-accent";
@@ -10,6 +10,7 @@ const campo =
 export default function FormularioCaptura({ mesActual }: { mesActual: string }) {
   const [estado, accion, pendiente] = useActionState<EstadoForm, FormData>(subirCaptura, {});
   const [comprimiendo, setComprimiendo] = useState(false);
+  const [errorLocal, setErrorLocal] = useState("");
   const ocupado = pendiente || comprimiendo;
 
   async function alEnviar(e: FormEvent<HTMLFormElement>) {
@@ -19,6 +20,9 @@ export default function FormularioCaptura({ mesActual }: { mesActual: string }) 
     setComprimiendo(true);
     const datos = await datosConImagenComprimida(form);
     setComprimiendo(false);
+    const problema = errorDeArchivo(datos);
+    setErrorLocal(problema ?? "");
+    if (problema) return;
     startTransition(() => accion(datos));
   }
 
@@ -42,7 +46,7 @@ export default function FormularioCaptura({ mesActual }: { mesActual: string }) 
           {comprimiendo ? "Comprimiendo…" : pendiente ? "Subiendo…" : "Subir captura"}
         </button>
         {estado.ok && !ocupado && <span className="text-sm text-ok">Guardada</span>}
-        {estado.error && !ocupado && <span className="text-sm text-danger">{estado.error}</span>}
+        {(errorLocal || estado.error) && !ocupado && <span className="text-sm text-danger">{errorLocal || estado.error}</span>}
       </div>
     </form>
   );

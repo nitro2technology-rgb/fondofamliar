@@ -232,3 +232,22 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 **Pendiente**
 1. Ejecutar `0007` y `0008` en Supabase ANTES de usar el despliegue (sin `0008` falla "Completar cuenta" y el guardado de asociados).
 2. Los 19 deben registrar su cuenta (Perfil). Definir control de entrega de cadena (propuesta pendiente de decisión) y ajustar `saldo_calculado` si la cadena va directa al receptor.
+
+## Sesión 7 (cont.) — Cadena directa y confirmación del receptor (sin subir aún)
+**Decisiones**
+- La cadena se paga directo a quien tiene el turno (comprobantes también van al grupo de WhatsApp). Ya no pasa por la cuenta NU.
+- El pago de cadena queda confirmado por UNA de las partes: el receptor ("Recibí") o un admin ("Aprobar"). El pago al fondo lo aprueba solo un admin. Cuando ambos están aprobados, la cuota pasa a pagada.
+- El receptor ve `/recibos` desde el día 1 de su mes hasta confirmar todos; al completar, la ventana desaparece (los admins la siguen viendo). Ventana emergente al entrar si le faltan por confirmar (una vez por sesión del navegador).
+
+**Hecho (código)**
+- Migración `0009_cadena_directa.sql`: `saldo_calculado` ya no cuenta la cadena ni las entregas. Se eliminó `/admin/cadena` y sus acciones (tabla `entregas_cadena` queda sin uso).
+- `/recibos` (receptor), `lib/recibos.ts`, acción `confirmarRecepcion`, `AvisoConfirmar`, botón "Pagar y subir comprobantes" arriba en Inicio, "Pagos del mes" destacado en Admin con contador, "Copiar lista de pendientes" (texto para WhatsApp) y "Confirmado por X" en `/admin/pagos`.
+
+**Pendiente**: ejecutar `0009` en Supabase, commit y push.
+
+## Sesión 7 (cierre) — Sin comprobante no hay confirmación
+**Decisión**: una cuota solo queda pagada con comprobante aprobado (fondo, y cadena si aplica). Se quitó el registro manual de pagos en `/admin/cuotas` (ahora es solo consulta). Si un asociado no sabe subirlo, el admin lo sube por él en `/admin/pagos` ("Subir comprobante de fondo/cadena"); queda anotado "Comprobante cargado por X".
+- Migración `0010_comprobante_cargado_por.sql` (`pagos_reportados.subido_por`).
+- Errores claros al subir: falta imagen, archivo no es imagen, imagen muy pesada; ayuda "¿No logras subirlo? Envíaselo a un administrador".
+- Para el receptor, una cuota pagada sin comprobante NO cuenta como confirmada.
+- Migraciones ejecutadas por el usuario: 0007, 0008, 0009. **Falta 0010.** Al migrar el Excel histórico habrá que cargar esos pagos sin comprobante de otra forma.

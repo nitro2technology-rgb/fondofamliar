@@ -5,6 +5,8 @@ import { pesos, fechaCorta, mesLargo } from "@/lib/format";
 import { estadoDeCuenta, resumenPrestamo } from "@/lib/cuentas";
 import { Suspense } from "react";
 import { requerirPerfil } from "@/lib/auth";
+import { turnoPorConfirmar } from "@/lib/recibos";
+import AvisoConfirmar from "@/components/AvisoConfirmar";
 import { crearClienteServidor } from "@/lib/supabase/server";
 
 export default function Inicio() {
@@ -17,9 +19,10 @@ export default function Inicio() {
 
 async function InicioContenido() {
   const perfil = await requerirPerfil();
-  const [cuenta, { prestamo, tope, puedePedir }] = await Promise.all([
+  const [cuenta, { prestamo, tope, puedePedir }, turnoCadena] = await Promise.all([
     estadoDeCuenta(perfil.id),
     resumenPrestamo(perfil.id),
+    turnoPorConfirmar(perfil.id),
   ]);
   const { data: extra } = await (await crearClienteServidor())
     .from("perfiles")
@@ -37,6 +40,31 @@ async function InicioContenido() {
         </div>
         <ThemeToggle />
       </header>
+
+      {cuenta.cuota && (
+        <Link
+          href="/pagos"
+          className="flex items-center justify-between rounded-2xl bg-accent px-5 py-4 text-accent-fg shadow-lg"
+        >
+          <span>
+            <span className="block text-lg font-bold">Pagar y subir comprobantes</span>
+            <span className="block text-xs opacity-80">
+              Cuota {pesos(cuenta.cuota.total)} · vence {fechaCorta(cuenta.cuota.vence)}
+            </span>
+          </span>
+          <ArrowRight size={22} />
+        </Link>
+      )}
+
+      {turnoCadena && (
+        <Link href="/recibos" className="block rounded-2xl border-2 border-accent bg-accent-soft p-4">
+          <p className="font-bold text-accent">Es tu turno: confirma los pagos de los socios</p>
+          <p className="text-sm text-muted">
+            {turnoCadena.confirmados} de {turnoCadena.total} confirmados · {turnoCadena.porConfirmar} por confirmar
+          </p>
+        </Link>
+      )}
+      {turnoCadena && turnoCadena.porConfirmar > 0 && <AvisoConfirmar pendientes={turnoCadena.porConfirmar} />}
 
       {extra && !extra.cuenta_pago && (
         <Link href="/perfil" className="block rounded-2xl border border-danger p-4 text-sm">
@@ -98,15 +126,6 @@ async function InicioContenido() {
           />
         ) : (
           <Fila icon={Receipt} titulo="Cuota mensual" valor="Al día" />
-        )}
-        {cuenta.cuota && (
-          <Link
-            href="/pagos"
-            className="flex items-center justify-between rounded-2xl bg-accent px-4 py-3 text-sm font-medium text-accent-fg"
-          >
-            Registrar pago y captura
-            <ArrowRight size={18} />
-          </Link>
         )}
         {cuenta.miTurno && (
           <Fila

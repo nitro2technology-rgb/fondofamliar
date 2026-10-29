@@ -2,9 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
-import { deshacerPagoCuota, registrarPagoCuota } from "@/lib/acciones";
 import { fechaCorta, hoyColombia, mesLargo, pesos } from "@/lib/format";
-import BotonEnvio from "@/components/BotonEnvio";
 
 export default function Cuotas({ searchParams }: PageProps<"/admin/cuotas">) {
   return (
@@ -47,6 +45,13 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/cuo
         ← Administración
       </Link>
       <h1 className="text-3xl font-bold tracking-tight">Cuotas mensuales</h1>
+      <p className="text-sm text-muted">
+        Una cuota queda pagada solo con comprobante aprobado. Cárgalos y apruébalos en{" "}
+        <Link href="/admin/pagos" className="text-accent underline">
+          Pagos del mes
+        </Link>
+        .
+      </p>
 
       <div className="flex gap-2 overflow-x-auto pb-2">
         {reuniones.map((t) => {
@@ -88,16 +93,11 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/cuo
                   {mora && " · en mora"}
                 </p>
               </div>
-              <form action={pagada ? deshacerPagoCuota : registrarPagoCuota}>
-                <input type="hidden" name="id" value={c.id} />
-                <BotonEnvio
-                  className={`rounded-xl px-3 py-2 text-xs font-medium ${
-                    pagada ? "border border-card-border text-muted" : "bg-accent text-accent-fg"
-                  }`}
-                >
-                  {pagada ? "Deshacer" : "Registrar pago"}
-                </BotonEnvio>
-              </form>
+              <span
+                className={`rounded-full px-2 py-1 text-xs ${pagada ? "bg-accent-soft text-accent" : "bg-card-border text-muted"}`}
+              >
+                {pagada ? "Pagada" : "Pendiente"}
+              </span>
             </div>
           );
         })}

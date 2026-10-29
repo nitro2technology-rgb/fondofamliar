@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useState, type FormEvent } from "react";
 import { reportarPago, type EstadoForm } from "@/lib/acciones";
-import { datosConImagenComprimida } from "@/lib/comprimir";
+import { datosConImagenComprimida, errorDeArchivo } from "@/lib/comprimir";
 import VisorImagen from "@/components/VisorImagen";
 
 const campo =
@@ -31,6 +31,7 @@ export default function FormularioPago({
 }) {
   const [estado, accion, pendiente] = useActionState<EstadoForm, FormData>(reportarPago, {});
   const [comprimiendo, setComprimiendo] = useState(false);
+  const [errorLocal, setErrorLocal] = useState("");
   const ocupado = pendiente || comprimiendo;
 
   async function alEnviar(e: FormEvent<HTMLFormElement>) {
@@ -40,6 +41,9 @@ export default function FormularioPago({
     setComprimiendo(true);
     const datos = await datosConImagenComprimida(form);
     setComprimiendo(false);
+    const problema = errorDeArchivo(datos);
+    setErrorLocal(problema ?? "");
+    if (problema) return;
     startTransition(() => accion(datos));
   }
 
@@ -68,14 +72,15 @@ export default function FormularioPago({
         <form onSubmit={alEnviar} className="space-y-3">
           <input type="hidden" name="cuota_id" value={cuotaId} />
           <input type="hidden" name="tipo" value={tipo} />
-          <input type="file" name="archivo" accept="image/*" required className={campo} />
+          <input type="file" name="archivo" accept="image/*" className={campo} />
           <div className="flex items-center gap-3">
             <button disabled={ocupado} className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-fg disabled:opacity-60">
               {comprimiendo ? "Comprimiendo…" : pendiente ? "Enviando…" : reporte ? "Reemplazar comprobante" : "Enviar comprobante"}
             </button>
             {estado.ok && !ocupado && <span className="text-sm text-ok">Enviado</span>}
-            {estado.error && !ocupado && <span className="text-sm text-danger">{estado.error}</span>}
           </div>
+          {(errorLocal || estado.error) && !ocupado && <p className="text-sm text-danger">{errorLocal || estado.error}</p>}
+          <p className="text-xs text-muted">¿No logras subirlo? Envíaselo a un administrador y él lo carga por ti.</p>
         </form>
       )}
     </div>

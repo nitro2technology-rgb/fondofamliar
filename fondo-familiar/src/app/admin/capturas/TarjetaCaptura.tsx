@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useState, useTransition, type FormEvent } from "react";
 import { editarCaptura, eliminarCaptura, type EstadoForm } from "@/lib/acciones";
-import { datosConImagenComprimida } from "@/lib/comprimir";
+import { datosConImagenComprimida, errorDeArchivo } from "@/lib/comprimir";
 import VisorImagen from "@/components/VisorImagen";
 
 const campo =
@@ -29,6 +29,7 @@ export default function TarjetaCaptura({ c }: { c: DatosCaptura }) {
 
   const [estado, accion, pendiente] = useActionState<EstadoForm, FormData>(editarCaptura, {});
   const [comprimiendo, setComprimiendo] = useState(false);
+  const [errorLocal, setErrorLocal] = useState("");
   const ocupado = pendiente || comprimiendo;
 
   async function alGuardar(e: FormEvent<HTMLFormElement>) {
@@ -38,6 +39,9 @@ export default function TarjetaCaptura({ c }: { c: DatosCaptura }) {
     setComprimiendo(true);
     const datos = await datosConImagenComprimida(form);
     setComprimiendo(false);
+    const problema = errorDeArchivo(datos, "archivo", false);
+    setErrorLocal(problema ?? "");
+    if (problema) return;
     startTransition(() => accion(datos));
   }
 
@@ -111,7 +115,9 @@ export default function TarjetaCaptura({ c }: { c: DatosCaptura }) {
             )}
           </div>
           {estado.ok && !ocupado && <p className="text-sm text-ok">Cambios guardados</p>}
-          {(estado.error || errorBorrado) && !ocupado && <p className="text-sm text-danger">{estado.error || errorBorrado}</p>}
+          {(errorLocal || estado.error || errorBorrado) && !ocupado && (
+            <p className="text-sm text-danger">{errorLocal || estado.error || errorBorrado}</p>
+          )}
         </form>
       )}
     </div>

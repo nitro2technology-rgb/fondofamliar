@@ -19,6 +19,8 @@ export default function RevisionPago({
   monto,
   estadoInicial,
   notaInicial,
+  confirmadoPor,
+  cargadoPor,
   url,
 }: {
   id: string;
@@ -26,6 +28,8 @@ export default function RevisionPago({
   monto: string;
   estadoInicial: Estado;
   notaInicial: string | null;
+  confirmadoPor: string | null;
+  cargadoPor: string | null;
   url: string | null;
 }) {
   const [estado, setEstado] = useState<Estado>(estadoInicial);
@@ -63,6 +67,8 @@ export default function RevisionPago({
         </p>
         <span className={`rounded-full px-2 py-0.5 text-xs ${clase}`}>{textoEstado}</span>
       </div>
+      {cargadoPor && <p className="text-xs text-muted">Comprobante cargado por {cargadoPor}</p>}
+      {estado === "aprobado" && confirmadoPor && <p className="text-xs text-muted">Confirmado por {confirmadoPor}</p>}
       {estado === "rechazado" && nota && <p className="text-xs text-danger">Motivo: {nota}</p>}
 
       <div className="flex flex-wrap items-center gap-2">

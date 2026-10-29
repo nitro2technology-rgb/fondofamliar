@@ -32,3 +32,17 @@ export async function datosConImagenComprimida(form: HTMLFormElement, campo = "a
   if (archivo instanceof File && archivo.size > 0) datos.set(campo, await comprimirImagen(archivo));
   return datos;
 }
+
+// Tope de seguridad: el envío al servidor admite 4 MB; una imagen más pesada ya comprimida no se puede subir.
+const LIMITE_BYTES = 3.5 * 1024 * 1024;
+
+// Mensaje claro para quien no sabe subir el comprobante; null si el archivo es válido.
+export function errorDeArchivo(datos: FormData, campo = "archivo", obligatorio = true): string | null {
+  const archivo = datos.get(campo);
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return obligatorio ? "Falta la imagen. Toca «Elegir archivo» y selecciona el pantallazo del pago." : null;
+  }
+  if (!archivo.type.startsWith("image/")) return "El archivo debe ser una imagen (pantallazo o foto), no un PDF u otro documento.";
+  if (archivo.size > LIMITE_BYTES) return "La imagen es muy pesada. Toma un pantallazo de la pantalla en lugar de una foto.";
+  return null;
+}

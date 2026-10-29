@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { requerirAdmin } from "@/lib/auth";
+import { crearClienteServidor } from "@/lib/supabase/server";
 
 export default function Admin() {
   return (
@@ -12,16 +13,31 @@ export default function Admin() {
 
 async function AdminContenido() {
   await requerirAdmin();
+  const { count } = await (await crearClienteServidor())
+    .from("pagos_reportados")
+    .select("id", { count: "exact", head: true })
+    .eq("estado", "pendiente");
+  const porRevisar = count ?? 0;
 
   return (
     <main className="mx-auto w-full max-w-md flex-1 space-y-4 px-4 pt-8">
       <h1 className="text-3xl font-bold tracking-tight">Administración</h1>
       <p className="text-muted">Registro y consulta del fondo.</p>
+      <Link
+        href="/admin/pagos"
+        className="flex items-center justify-between rounded-2xl bg-accent px-5 py-4 text-accent-fg shadow-lg"
+      >
+        <span>
+          <span className="block text-lg font-bold">Pagos del mes</span>
+          <span className="block text-xs opacity-80">Comprobantes, quién falta y aprobaciones</span>
+        </span>
+        {porRevisar > 0 && (
+          <span className="rounded-full bg-white px-3 py-1 text-sm font-bold text-accent">{porRevisar} por revisar</span>
+        )}
+      </Link>
       {[
-        ["/admin/pagos", "Pagos reportados (revisar y aprobar)"],
         ["/admin/prestamos", "Préstamos (votación, desembolsos y pagos)"],
         ["/admin/cuotas", "Cuotas mensuales"],
-        ["/admin/cadena", "Cadena (entrega del turno)"],
         ["/admin/asistencia", "Asistencia y juegos"],
         ["/admin/multas", "Multas"],
         ["/admin/aportes", "Aportes únicos (inicial y tecnológico)"],

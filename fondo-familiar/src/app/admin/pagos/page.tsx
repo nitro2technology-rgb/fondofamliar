@@ -4,6 +4,8 @@ import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { hoyColombia, mesLargo, pesos } from "@/lib/format";
 import RevisionPago from "./RevisionPago";
+import CopiarPendientes from "./CopiarPendientes";
+import SubirComprobanteAdmin from "./SubirComprobanteAdmin";
 
 export default function PagosReportados({ searchParams }: PageProps<"/admin/pagos">) {
   return (
@@ -35,8 +37,21 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pag
     : { data: [] };
   const ids = (cuotas ?? []).map((c) => c.id);
   const { data: reportes } = ids.length
-    ? await supabase.from("pagos_reportados").select("id, cuota_id, tipo, estado, nota, monto, ruta_archivo").in("cuota_id", ids)
+    ? await supabase.from("pagos_reportados").select("id, cuota_id, tipo, estado, nota, monto, ruta_archivo, revisado_por, asociado_id, subido_por").in("cuota_id", ids)
     : { data: [] };
+
+  const revisores = [
+    ...new Set((reportes ?? []).flatMap((r) => [r.revisado_por, r.subido_por]).filter(Boolean)),
+  ] as string[];
+  const { data: personas } = revisores.length
+    ? await supabase.from("perfiles").select("id, nombre").in("id", revisores)
+    : { data: [] };
+  const confirmadoPor = (r: { estado: string; revisado_por: string | null }) =>
+    r.estado === "aprobado" ? (personas ?? []).find((p) => p.id === r.revisado_por)?.nombre ?? null : null;
+
+  // Solo se indica quién cargó el comprobante cuando fue un administrador y no el propio asociado.
+  const cargadoPor = (r: { subido_por: string | null; asociado_id: string }) =>
+    r.subido_por && r.subido_por !== r.asociado_id ? ((personas ?? []).find((p) => p.id === r.subido_por)?.nombre ?? "un administrador") : null;
 
   const rutas = (reportes ?? []).map((r) => r.ruta_archivo);
   const { data: firmadas } = rutas.length
@@ -62,6 +77,23 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pag
       porRevisar: [f.repFondo, f.repCadena].filter((r) => r?.estado === "pendiente").length,
     }))
     .sort((a, b) => b.porRevisar - a.porRevisar || a.nombre.localeCompare(b.nombre));
+
+  // Texto para recordar en el grupo de WhatsApp a quienes aún no han subido sus comprobantes.
+  const falta = (rep: { estado: string } | undefined) => !rep || rep.estado === "rechazado";
+  const lineas = filas
+    .filter((f) => !f.pagada)
+    .map((f) => {
+      const partes = [falta(f.repFondo) && "fondo", f.cadena > 0 && falta(f.repCadena) && "cadena"].filter(Boolean);
+      return partes.length ? `• ${f.nombre}: falta ${partes.join(" y ")}` : null;
+    })
+    .filter(Boolean);
+  const textoPendientes = elegido
+    ? [
+        `Pagos pendientes de ${mesLargo(elegido.fecha_reunion)}. Súbelos en fondofamiliar.nitro2tech.com`,
+        `La cadena de este mes es para ${elegido.nombre_listado}.`,
+        ...(lineas.length ? lineas : ["¡Todos al día!"]),
+      ].join("\n")
+    : "";
 
   const porRevisar = filas.reduce((s, f) => s + f.porRevisar, 0);
   const pagadas = filas.filter((f) => f.pagada).length;
@@ -96,6 +128,8 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pag
         </p>
       )}
 
+      <CopiarPendientes texto={textoPendientes} />
+
       <div className="space-y-2">
         {filas.map((f) => (
           <div key={f.id} className="space-y-2 rounded-2xl border border-card-border bg-card p-3">
@@ -112,6 +146,8 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pag
                 monto={pesos(Number(f.repFondo.monto))}
                 estadoInicial={f.repFondo.estado}
                 notaInicial={f.repFondo.nota}
+                confirmadoPor={confirmadoPor(f.repFondo)}
+                cargadoPor={cargadoPor(f.repFondo)}
                 url={urlDe(f.repFondo.ruta_archivo)}
               />
             )}
@@ -123,8 +159,16 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pag
                 monto={pesos(Number(f.repCadena.monto))}
                 estadoInicial={f.repCadena.estado}
                 notaInicial={f.repCadena.nota}
+                confirmadoPor={confirmadoPor(f.repCadena)}
+                cargadoPor={cargadoPor(f.repCadena)}
                 url={urlDe(f.repCadena.ruta_archivo)}
               />
+            )}
+            {!f.pagada && (!f.repFondo || f.repFondo.estado === "rechazado") && (
+              <SubirComprobanteAdmin cuotaId={f.id} tipo="fondo" titulo="fondo" />
+            )}
+            {!f.pagada && f.cadena > 0 && (!f.repCadena || f.repCadena.estado === "rechazado") && (
+              <SubirComprobanteAdmin cuotaId={f.id} tipo="cadena" titulo="cadena" />
             )}
           </div>
         ))}

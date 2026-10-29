@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { clienteAdmin } from "@/lib/supabase/admin";
@@ -157,28 +158,6 @@ export async function reiniciarPrimerIngreso(formData: FormData) {
 }
 
 // ───────── Cuotas y aportes (tesorero / contador / fiscal) ─────────
-export async function registrarPagoCuota(formData: FormData) {
-  const admin = await requerirAdmin();
-  const fecha = String(formData.get("fecha") ?? "") || hoyColombia();
-  const supabase = await crearClienteServidor();
-  await supabase
-    .from("cuotas")
-    .update({ estado: "pagada", fecha_pago: fecha, registrado_por: admin.id })
-    .eq("id", String(formData.get("id")));
-  revalidatePath("/admin/cuotas");
-}
-
-// Corrige un registro equivocado; queda en la auditoría.
-export async function deshacerPagoCuota(formData: FormData) {
-  const admin = await requerirAdmin();
-  const supabase = await crearClienteServidor();
-  await supabase
-    .from("cuotas")
-    .update({ estado: "pendiente", fecha_pago: null, registrado_por: admin.id })
-    .eq("id", String(formData.get("id")));
-  revalidatePath("/admin/cuotas");
-}
-
 export async function registrarAporte(formData: FormData) {
   const admin = await requerirAdmin();
   const tipo = String(formData.get("tipo"));
@@ -297,7 +276,7 @@ export async function reportarPago(_: EstadoForm, formData: FormData): Promise<E
 
   if (tipo !== "fondo" && tipo !== "cadena") return { error: "Tipo de pago no válido." };
   if (!(archivo instanceof File) || archivo.size === 0) return { error: "Adjunta la captura del pago." };
-  if (!archivo.type.startsWith("image/")) return { error: "El archivo debe ser una imagen." };
+  if (!archivo.type.startsWith("image/")) return { error: "El archivo debe ser una imagen (pantallazo o foto del comprobante)." };
   if (archivo.size > 8 * 1024 * 1024) return { error: "La imagen pesa más de 8 MB." };
 
   const supabase = await crearClienteServidor();
@@ -332,6 +311,7 @@ export async function reportarPago(_: EstadoForm, formData: FormData): Promise<E
       tipo,
       monto,
       ruta_archivo: ruta,
+      subido_por: perfil.id,
       estado: "pendiente",
       nota: null,
       creado_en: new Date().toISOString(),
@@ -347,6 +327,130 @@ export async function reportarPago(_: EstadoForm, formData: FormData): Promise<E
   if (previo?.ruta_archivo) await supabase.storage.from("comprobantes-pago").remove([previo.ruta_archivo]);
   revalidatePath("/pagos");
   revalidatePath("/admin/pagos");
+  return { ok: true };
+}
+
+// La cuota queda pagada cuando el pago al fondo y (si tiene cadena) el de la cadena están aprobados.
+// Si se deshace una aprobación, vuelve a pendiente.
+async function sincronizarCuota(db: SupabaseClient, cuotaId: string, usuarioId: string, estabaAprobado: boolean) {
+  const [{ data: cuota }, { data: pagos }] = await Promise.all([
+    db.from("cuotas").select("cadena, estado").eq("id", cuotaId).single(),
+    db.from("pagos_reportados").select("tipo, estado").eq("cuota_id", cuotaId),
+  ]);
+  const aprobado = (t: string) => (pagos ?? []).some((x) => x.tipo === t && x.estado === "aprobado");
+  const completa = aprobado("fondo") && (Number(cuota?.cadena ?? 0) === 0 || aprobado("cadena"));
+
+  if (completa && cuota?.estado !== "pagada") {
+    await db.from("cuotas").update({ estado: "pagada", fecha_pago: hoyColombia(), registrado_por: usuarioId }).eq("id", cuotaId);
+  } else if (!completa && estabaAprobado && cuota?.estado === "pagada") {
+    await db.from("cuotas").update({ estado: "pendiente", fecha_pago: null, registrado_por: usuarioId }).eq("id", cuotaId);
+  }
+}
+
+// Quien tiene el turno de cadena confirma (o niega) haber recibido el pago de cada socio.
+// Basta una de las dos partes: la confirmación del receptor o la aprobación de un administrador.
+export async function confirmarRecepcion(
+  pagoId: string,
+  decision: "recibido" | "no_recibido" | "deshacer",
+): Promise<EstadoForm> {
+  const perfil = await requerirPerfil();
+  const db = clienteAdmin();
+
+  const { data: pago } = await db
+    .from("pagos_reportados")
+    .select("cuota_id, tipo, estado, revisado_por")
+    .eq("id", pagoId)
+    .maybeSingle();
+  if (!pago || pago.tipo !== "cadena") return { error: "El pago ya no existe." };
+
+  const { data: cuota } = await db.from("cuotas").select("periodo").eq("id", pago.cuota_id).single();
+  const { data: turnos } = await db.from("cadena_turnos").select("fecha_reunion").eq("asociado_id", perfil.id);
+  const esMiTurno = (turnos ?? []).some((t) => t.fecha_reunion.slice(0, 7) === cuota?.periodo.slice(0, 7));
+  if (!esMiTurno) return { error: "Solo quien tiene el turno de este mes puede confirmar." };
+
+  let cambios: Record<string, unknown>;
+  if (decision === "recibido") {
+    cambios = { estado: "aprobado", nota: null, revisado_por: perfil.id, revisado_en: new Date().toISOString() };
+  } else if (decision === "no_recibido") {
+    if (pago.estado === "aprobado" && pago.revisado_por !== perfil.id) {
+      return { error: "Un administrador ya aprobó este pago. Avísale para revisarlo." };
+    }
+    cambios = { estado: "rechazado", nota: "El receptor indica que no lo recibió", revisado_por: perfil.id, revisado_en: new Date().toISOString() };
+  } else {
+    if (pago.estado !== "pendiente" && pago.revisado_por !== perfil.id) return { error: "Solo puedes deshacer tus propias confirmaciones." };
+    cambios = { estado: "pendiente", nota: null, revisado_por: null, revisado_en: null };
+  }
+
+  const { error } = await db.from("pagos_reportados").update(cambios).eq("id", pagoId);
+  if (error) return { error: "No se pudo guardar." };
+  await sincronizarCuota(db, pago.cuota_id, perfil.id, pago.estado === "aprobado");
+  revalidatePath("/recibos");
+  revalidatePath("/admin/pagos");
+  revalidatePath("/pagos");
+  revalidatePath("/");
+  return { ok: true };
+}
+
+// Un administrador sube el comprobante de un asociado que no supo hacerlo. Sin comprobante no hay aprobación.
+// Se usa el cliente de servicio porque la política de almacenamiento solo deja subir a la carpeta propia.
+export async function subirComprobanteAdmin(_: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const admin = await requerirAdmin();
+  const cuotaId = String(formData.get("cuota_id") ?? "");
+  const tipo = String(formData.get("tipo") ?? "");
+  const archivo = formData.get("archivo");
+
+  if (tipo !== "fondo" && tipo !== "cadena") return { error: "Tipo de pago no válido." };
+  if (!(archivo instanceof File) || archivo.size === 0) return { error: "Adjunta la captura del pago." };
+  if (!archivo.type.startsWith("image/")) return { error: "El archivo debe ser una imagen (pantallazo o foto del comprobante)." };
+  if (archivo.size > 8 * 1024 * 1024) return { error: "La imagen pesa más de 8 MB." };
+
+  const db = clienteAdmin();
+  const { data: cuota } = await db
+    .from("cuotas")
+    .select("id, asociado_id, ahorro, cadena, juegos, estado")
+    .eq("id", cuotaId)
+    .maybeSingle();
+  if (!cuota) return { error: "No se encontró la cuota." };
+  if (cuota.estado === "pagada") return { error: "Esta cuota ya está registrada como pagada." };
+
+  const monto = tipo === "fondo" ? Number(cuota.ahorro) + Number(cuota.juegos) : Number(cuota.cadena);
+  if (monto <= 0) return { error: "Esa parte no aplica para este asociado en este mes." };
+
+  const { data: previo } = await db
+    .from("pagos_reportados")
+    .select("estado, ruta_archivo")
+    .eq("cuota_id", cuotaId)
+    .eq("tipo", tipo)
+    .maybeSingle();
+  if (previo?.estado === "aprobado") return { error: "Este pago ya fue aprobado." };
+
+  const ruta = `${cuota.asociado_id}/${cuotaId}-${tipo}-${Date.now()}.jpg`;
+  const { error: errorSubida } = await db.storage.from("comprobantes-pago").upload(ruta, archivo);
+  if (errorSubida) return { error: "No se pudo subir la imagen." };
+
+  const { error } = await db.from("pagos_reportados").upsert(
+    {
+      cuota_id: cuotaId,
+      asociado_id: cuota.asociado_id,
+      tipo,
+      monto,
+      ruta_archivo: ruta,
+      subido_por: admin.id,
+      estado: "pendiente",
+      nota: null,
+      creado_en: new Date().toISOString(),
+      revisado_por: null,
+      revisado_en: null,
+    },
+    { onConflict: "cuota_id,tipo" },
+  );
+  if (error) {
+    await db.storage.from("comprobantes-pago").remove([ruta]);
+    return { error: "No se pudo registrar el pago." };
+  }
+  if (previo?.ruta_archivo) await db.storage.from("comprobantes-pago").remove([previo.ruta_archivo]);
+  revalidatePath("/admin/pagos");
+  revalidatePath("/pagos");
   return { ok: true };
 }
 
@@ -375,24 +479,7 @@ export async function revisarPago(
     .eq("id", id);
   if (error) return { error: "No se pudo guardar la revisión." };
 
-  const [{ data: cuota }, { data: pagos }] = await Promise.all([
-    supabase.from("cuotas").select("cadena, estado").eq("id", pago.cuota_id).single(),
-    supabase.from("pagos_reportados").select("tipo, estado").eq("cuota_id", pago.cuota_id),
-  ]);
-  const aprobado = (t: string) => (pagos ?? []).some((x) => x.tipo === t && x.estado === "aprobado");
-  const completa = aprobado("fondo") && (Number(cuota?.cadena ?? 0) === 0 || aprobado("cadena"));
-
-  if (completa && cuota?.estado !== "pagada") {
-    await supabase
-      .from("cuotas")
-      .update({ estado: "pagada", fecha_pago: hoyColombia(), registrado_por: admin.id })
-      .eq("id", pago.cuota_id);
-  } else if (!completa && pago.estado === "aprobado" && cuota?.estado === "pagada") {
-    await supabase
-      .from("cuotas")
-      .update({ estado: "pendiente", fecha_pago: null, registrado_por: admin.id })
-      .eq("id", pago.cuota_id);
-  }
+  await sincronizarCuota(supabase, pago.cuota_id, admin.id, pago.estado === "aprobado");
   revalidatePath("/admin/pagos");
   revalidatePath("/admin/cuotas");
   revalidatePath("/pagos");
@@ -579,25 +666,4 @@ export async function guardarJuegos(formData: FormData) {
     utilidad: recaudo - Math.floor(recaudo / 2),
   });
   revalidatePath("/admin/asistencia");
-}
-
-// ───────── Cadena ─────────
-// Registra que el recaudo de cadena del mes ya se entregó a quien tenía el turno.
-export async function registrarEntregaCadena(formData: FormData) {
-  const admin = await requerirAdmin();
-  const supabase = await crearClienteServidor();
-  await supabase.from("entregas_cadena").upsert({
-    turno: Number(formData.get("turno")),
-    monto: montoDe(formData.get("monto")),
-    fecha_entrega: hoyColombia(),
-    registrado_por: admin.id,
-  });
-  revalidatePath("/admin/cadena");
-}
-
-export async function deshacerEntregaCadena(formData: FormData) {
-  await requerirAdmin();
-  const supabase = await crearClienteServidor();
-  await supabase.from("entregas_cadena").delete().eq("turno", Number(formData.get("turno")));
-  revalidatePath("/admin/cadena");
 }
