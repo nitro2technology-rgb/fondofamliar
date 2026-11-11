@@ -8,6 +8,7 @@ import { clienteAdmin } from "@/lib/supabase/admin";
 import { requerirAdmin, requerirPerfil } from "@/lib/auth";
 import { hoyColombia, pesos } from "@/lib/format";
 import { enviarCorreos, plantilla } from "@/lib/correo";
+import { resumenPrestamo } from "@/lib/cuentas";
 
 export type EstadoForm = { error?: string; ok?: boolean };
 
@@ -605,6 +606,89 @@ export async function registrarMovimientoPrestamo(formData: FormData) {
     await supabase.from("prestamos").update({ estado: "pagado" }).eq("id", id);
   }
   revalidatePath("/admin/prestamos");
+}
+
+// El asociado reporta un pago de su préstamo (interés, mora y/o abono a capital) con comprobante.
+export async function reportarPagoPrestamo(_: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const perfil = await requerirPerfil();
+  const interes = montoDe(formData.get("interes"));
+  const mora = montoDe(formData.get("mora"));
+  const capital = montoDe(formData.get("capital"));
+  const archivo = formData.get("archivo");
+
+  if (interes + mora + capital <= 0) return { error: "Escribe cuánto vas a pagar (interés, mora o abono a capital)." };
+  if (!(archivo instanceof File) || archivo.size === 0) return { error: "Adjunta la captura del pago." };
+  if (!archivo.type.startsWith("image/")) return { error: "El archivo debe ser una imagen (pantallazo o foto del comprobante)." };
+  if (archivo.size > 8 * 1024 * 1024) return { error: "La imagen pesa más de 8 MB." };
+
+  const { prestamo } = await resumenPrestamo(perfil.id);
+  if (!prestamo || prestamo.estado !== "vigente" || !("cuentas" in prestamo)) return { error: "No tienes un préstamo vigente." };
+  const c = prestamo.cuentas;
+  if (capital > c.saldoCapital) return { error: `El abono a capital no puede superar tu saldo (${c.saldoCapital.toLocaleString("es-CO")}).` };
+  if (capital > 0 && capital === c.saldoCapital && interes < c.interesPendiente) {
+    return { error: "Para cancelar el préstamo también debes pagar el interés pendiente." };
+  }
+
+  const supabase = await crearClienteServidor();
+  const ruta = `${perfil.id}/prestamo-${prestamo.id}-${Date.now()}.jpg`;
+  const { error: errorSubida } = await supabase.storage.from("comprobantes-pago").upload(ruta, archivo);
+  if (errorSubida) return { error: "No se pudo subir la imagen." };
+
+  const { error } = await supabase.from("pagos_prestamo").insert({
+    prestamo_id: prestamo.id,
+    asociado_id: perfil.id,
+    monto_interes: interes,
+    monto_mora: mora,
+    monto_capital: capital,
+    ruta_archivo: ruta,
+    subido_por: perfil.id,
+  });
+  if (error) {
+    await supabase.storage.from("comprobantes-pago").remove([ruta]);
+    return { error: "No se pudo registrar el pago." };
+  }
+
+  try {
+    const { data: admins } = await clienteAdmin().from("perfiles").select("correo").in("rol", ["tesorero", "contador", "fiscal"]).eq("activo", true);
+    await enviarCorreos(
+      (admins ?? []).map((a) => a.correo),
+      "Pago de préstamo por revisar",
+      plantilla("Pago de préstamo por revisar", [`${perfil.nombre} reportó un pago de ${pesos(interes + mora + capital)} a su préstamo.`], { texto: "Revisar pagos", ruta: "/admin/pagos" }),
+    );
+  } catch (e) {
+    console.error("Aviso de pago de préstamo falló", e);
+  }
+
+  revalidatePath("/pagos");
+  revalidatePath("/prestamos");
+  revalidatePath("/admin/pagos");
+  return { ok: true };
+}
+
+// Un administrador aprueba (crea los movimientos y, si se cancela el capital, libera al asociado) o rechaza.
+export async function revisarPagoPrestamo(id: string, decision: "aprobado" | "rechazado", nota?: string): Promise<EstadoForm> {
+  const admin = await requerirAdmin();
+  const supabase = await crearClienteServidor();
+
+  if (decision === "aprobado") {
+    const { data, error } = await supabase.rpc("aprobar_pago_prestamo", { p_id: id });
+    if (error) return { error: "No se pudo aprobar el pago." };
+    if (data !== "ok") return { error: String(data) };
+  } else {
+    const { data, error } = await supabase
+      .from("pagos_prestamo")
+      .update({ estado: "rechazado", nota: (nota ?? "").trim().slice(0, 200) || null, revisado_por: admin.id, revisado_en: new Date().toISOString() })
+      .eq("id", id)
+      .eq("estado", "pendiente")
+      .select("id");
+    if (error || !data?.length) return { error: "No se pudo rechazar (¿ya fue revisado?)." };
+  }
+  revalidatePath("/admin/pagos");
+  revalidatePath("/admin/prestamos");
+  revalidatePath("/prestamos");
+  revalidatePath("/pagos");
+  revalidatePath("/");
+  return { ok: true };
 }
 
 // ───────── Asistencia, multas y juegos ─────────

@@ -3,6 +3,8 @@ import { requerirPerfil } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { cuentasPrestamo } from "@/lib/prestamos";
 import { fechaCorta, hoyColombia, pesos } from "@/lib/format";
+import Link from "next/link";
+import TarjetaPrestamo from "@/components/TarjetaPrestamo";
 import FormularioSolicitud from "./FormularioSolicitud";
 
 export default function Prestamos() {
@@ -83,26 +85,40 @@ async function Contenido() {
       )}
 
       {enCurso && (
-        <section className="space-y-3 rounded-3xl bg-gradient-to-br from-accent to-[#4a1d99] p-6 text-accent-fg shadow-lg">
-          <p className="text-sm opacity-80">{ETIQUETA[enCurso.estado]}</p>
+        <section className="space-y-4">
           {enCurso.estado === "vigente" && cuentas ? (
             <>
-              <p className="text-4xl font-bold tracking-tight">{pesos(cuentas.saldoCapital)}</p>
-              <p className="text-sm opacity-80">saldo de capital · inicial {pesos(cuentas.capitalInicial)}</p>
-              <div className="grid grid-cols-2 gap-3 pt-2 text-sm">
-                <Dato titulo="Interés mensual fijo" valor={pesos(cuentas.interesMensual)} />
+              <TarjetaPrestamo
+                etiqueta="Tu préstamo"
+                valor={pesos(cuentas.saldoCapital)}
+                titular={perfil.nombre}
+                izquierda={{ titulo: "Interés mensual", valor: pesos(cuentas.interesMensual) }}
+                derecha={{ titulo: "Inicial", valor: pesos(cuentas.capitalInicial) }}
+              />
+              <div className="grid grid-cols-3 gap-2 text-center text-sm">
                 <Dato titulo="Interés pendiente" valor={pesos(cuentas.interesPendiente)} />
                 <Dato titulo="Mora estimada" valor={pesos(cuentas.moraPendiente)} />
                 <Dato titulo="Desembolso" valor={enCurso.desembolsado_en ? fechaCorta(enCurso.desembolsado_en) : "—"} />
               </div>
-              <p className="text-xs opacity-70">El interés vence cada día de reunión. La mora es una estimación provisional.</p>
+              <Link
+                href="/pagos?pago=prestamo"
+                className="flex items-center justify-center rounded-full bg-foreground py-4 font-semibold text-background"
+              >
+                Abonar o pagar interés
+              </Link>
+              <p className="text-xs text-muted">
+                El interés vence cada día de reunión y se paga hasta cancelar todo el capital. Puedes abonar a capital cuando quieras y por
+                cualquier valor. Al cancelarlo por completo quedas libre para pedir otro préstamo. La mora es una estimación provisional.
+              </p>
             </>
           ) : (
             <>
-              <p className="text-4xl font-bold tracking-tight">{pesos(Number(enCurso.monto))}</p>
-              {posicion?.data != null && (
-                <p className="text-sm opacity-80">Posición en la cola: {String(posicion.data)}</p>
-              )}
+              <TarjetaPrestamo
+                etiqueta={ETIQUETA[enCurso.estado]}
+                valor={pesos(Number(enCurso.monto))}
+                titular={perfil.nombre}
+                izquierda={posicion?.data != null ? { titulo: "Posición en la cola", valor: String(posicion.data) } : undefined}
+              />
             </>
           )}
         </section>
@@ -112,7 +128,7 @@ async function Contenido() {
         <section className="space-y-2">
           <h2 className="text-lg font-semibold">Movimientos</h2>
           {(movs ?? []).map((m, i) => (
-            <div key={i} className="flex justify-between rounded-2xl border border-card-border bg-card p-3 text-sm">
+            <div key={i} className="flex justify-between rounded-2xl bg-card p-4 text-sm">
               <div>
                 <p>{MOV[m.tipo] ?? m.tipo}</p>
                 <p className="text-xs text-muted">{fechaCorta(m.fecha)}</p>
@@ -129,7 +145,7 @@ async function Contenido() {
           {lista
             .filter((x) => x !== enCurso)
             .map((x) => (
-              <div key={x.id} className="flex justify-between rounded-2xl border border-card-border bg-card p-3 text-sm">
+              <div key={x.id} className="flex justify-between rounded-2xl bg-card p-4 text-sm">
                 <div>
                   <p>{pesos(Number(x.monto))}</p>
                   <p className="text-xs text-muted">{fechaCorta(x.radicado_en.slice(0, 10))}</p>
@@ -145,8 +161,8 @@ async function Contenido() {
 
 function Dato({ titulo, valor }: { titulo: string; valor: string }) {
   return (
-    <div>
-      <p className="opacity-70">{titulo}</p>
+    <div className="rounded-2xl bg-card px-2 py-3">
+      <p className="text-xs text-muted">{titulo}</p>
       <p className="font-semibold">{valor}</p>
     </div>
   );

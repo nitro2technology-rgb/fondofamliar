@@ -252,7 +252,7 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - Para el receptor, una cuota pagada sin comprobante NO cuenta como confirmada.
 - Migraciones ejecutadas por el usuario: 0007, 0008, 0009. **Falta 0010.** Al migrar el Excel histórico habrá que cargar esos pagos sin comprobante de otra forma.
 
-## ESTADO ACTUAL (cierre de sesión 7, 2026-10-29) — LEER ESTO PRIMERO
+## (Histórico) Estado al cierre de la sesión 7 — superado por la sesión 8
 
 **Producción**: `fondofamiliar.nitro2tech.com` (Vercel despliega con cada push a `main`). Último commit subido: `5d7e4d3`. Las especificaciones de uso y técnicas (v2) están al día con todo lo construido.
 
@@ -283,3 +283,40 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - La app está en `fondo-familiar/` (Next.js 16, `cacheComponents`, `proxy.ts`); las especificaciones y esta bitácora en `Instrucciones/`. En Windows el `git push` a veces tarda >2 min (reintentar). Los archivos del repo usan CRLF en parte; al editar con scripts conservar los saltos de línea.
 - Si falla algo tras un deploy: ¿se ejecutó la migración correspondiente en el proyecto correcto de Supabase? ¿Se hizo Redeploy tras cambiar variables?
 - Commits: terminan con la línea `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`. El usuario pide el commit/push explícitamente cada vez.
+
+
+## Sesión 8 (2026-11-11) — Semana 4 casi completa — LEER ESTO PRIMERO
+
+**Hecho (todo en producción salvo lo marcado)**
+- Calendario real (`/calendario`) y Perfil completo (celular, ciudad, turno).
+- Correos con Resend (`lib/correo.ts`): recordatorios de cuota, aviso a directivos de nuevas solicitudes y de pagos de préstamo. Probado el envío (dominio verificado, clave válida).
+- Cobro de intereses: `/api/recordatorios` avisa al deudor (3 días antes, el día y mora semanal), resumen a directivos el día de la reunión, bloque "Por cobrar" en `/admin/prestamos`. La mora es estimada (fórmula provisional) y el pago lo sigue registrando/aprobando un admin.
+- Reportes PDF (`pdf-lib`): `/estado-cuenta` y `/admin/cartera-pdf`.
+- Carga inicial `0011` ejecutada: 38 aportes (inicial y tecnológico) y 6 préstamos vigentes del Excel `Creditos Fondo.xlsx` ($1.800.000; el 4x1000 lo asume el usuario). La solicitud de prueba quedó como `rechazado`.
+- Rediseño estilo Revolut (carpeta `Instrucciones/Diseño`): degradado y cifra grande en Inicio, botones circulares de acción, barra inferior plana con etiquetas, tarjetas oscuras muy redondeadas, botones blancos en píldora, tarjeta del préstamo con aspecto de tarjeta física (`components/TarjetaPrestamo.tsx`), botón "Seleccionar archivo" global (CSS).
+- Pagos de préstamo (`0012` ejecutada): `/pagos` ahora pregunta "¿Qué deseas pagar?" (Cuota o Préstamo). Cuota: solo la inmediata con su fecha + resumen de pagadas y por pagar. Préstamo: interés del mes, abono a capital o pago total, con comprobante; el admin aprueba en `/admin/pagos` (no se deshace). Botón "Abonar o pagar interés" en `/prestamos`.
+
+**Reglas confirmadas esta sesión**
+- Un solo préstamo en curso por asociado (estatuto): para pedir otro hay que cancelar el anterior por completo.
+- El interés se paga cada reunión hasta cancelar todo el capital; se puede abonar a capital cuando se quiera, por cualquier valor.
+- El aporte tecnológico ($20.000) y el inicial ($100.000) ya los pagaron los 19.
+
+**Pendiente — usuario**
+1. Ejecutar el SQL de limpieza de pruebas (cuotas de noviembre marcadas pagadas de Nicolás, Camilo y Andrés; multa y asistencia de prueba; entrega de cadena de prueba). Ver el SQL en la conversación o rehacerlo: cuotas `pagada` de 2026-11-01 -> `pendiente`; borrar la multa de $5.000, la asistencia `tarde` de la reunión 255c3aae... y `entregas_cadena`.
+2. En Vercel: `RESEND_API_KEY` (y `CRON_SECRET`) + Redeploy.
+3. Avisar a los 19 que activen su cuenta con "Primer ingreso" y registren su cuenta de pagos (hasta entonces nadie recibe correos: tienen correo provisional).
+4. Subir la captura NU de octubre (la conciliación debe dar $480.000 = $2.280.000 de aportes menos $1.800.000 desembolsados).
+5. Confirmar con los directivos: fórmula de mora, definición de ahorro acumulado y caja prestable, premios de juegos, multa de ausencia solo en Pasto, riesgo de usura del 4% y si se permite más de un préstamo a la vez.
+
+**Pendiente — desarrollo**
+1. Rediseño del panel de administración (el usuario lo pidió; falta definir qué cambiar).
+2. Extender el estilo nuevo (títulos grandes, botones en píldora) a las pantallas internas y a admin.
+3. Cierre de ciclo: reunión de liquidación (12-may-2028), bloqueo con préstamos vigentes, liquidación = ahorro + utilidades ÷ 19.
+4. Respaldo periódico de la base (Supabase gratis no trae respaldos diarios).
+5. Mensaje en `/prestamos` ya explica el límite de un préstamo; pendiente PWA instalable, splash con logo y pruebas de punta a punta.
+6. Limpieza: tabla `entregas_cadena` en desuso.
+
+**Notas técnicas**
+- Si el shell falla con heredocs largos, escribir los archivos con la herramienta de escritura. Consultas con relaciones de PostgREST: usar el nombre de la FK (`perfiles!cuotas_asociado_id_fkey`, `perfiles!prestamos_asociado_id_fkey`) porque hay varias FK a `perfiles`.
+- `votos_prestamo` y `movimientos_prestamo` son de solo inserción (trigger `bloquear_cambios`): no se borran; se corrigen con estados o contramovimientos.
+- Commits terminan con `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`.

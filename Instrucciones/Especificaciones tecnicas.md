@@ -87,10 +87,11 @@ Reglas de integridad: montos en pesos enteros (COP, sin decimales); movimientos 
 2. **Semana 2** ✅ (excepto Excel): cuotas/aportes, estado de cuenta, captura NU con conciliación. Falta migrar el Excel.
 3. **Semana 3** ✅: préstamos (solicitud, cola, votación, intereses, mora, abonos), asistencia/multas/juegos.
 4. **Extra (sesión 7)** ✅: pagos con comprobante, confirmación del receptor, cuenta de pagos, cron anti-pausa.
-5. **Semana 4 (pendiente)**: calendario real, correos y recordatorios (Resend), reportes/PDF por asociado, cierre de ciclo (liquidación), Perfil completo, exportación de respaldo, pruebas de punta a punta.
+5. **Sesión 8** ✅: calendario real y Perfil completo, correos y recordatorios (Resend), cobro de intereses (avisos + resumen para directivos + "Por cobrar"), reportes PDF (estado de cuenta y cartera), carga inicial (aportes y 6 préstamos del Excel), rediseño estilo Revolut (Inicio, barra inferior, tarjeta del préstamo, botones de archivo), pagos de préstamo con comprobante y flujo "¿Qué deseas pagar?".
+6. **Pendiente**: cierre de ciclo (liquidación), exportación periódica de respaldo, rediseño del panel de administración, pruebas de punta a punta, PWA instalable.
 
 ## 9. Entornos
-- Local → Producción en **fondofamiliar.nitro2tech.com** (Vercel, Root Directory = `fondo-familiar`; despliega con cada push a `main`). Repo GitHub `nitro2technology-rgb/fondofamliar` (raíz = carpeta del proyecto; la app está en `fondo-familiar/`). Resend aún sin configurar.
+- Local → Producción en **fondofamiliar.nitro2tech.com** (Vercel, Root Directory = `fondo-familiar`; despliega con cada push a `main`). Repo GitHub `nitro2technology-rgb/fondofamliar` (raíz = carpeta del proyecto; la app está en `fondo-familiar/`). Resend configurado (dominio `nitro2tech.com` verificado; variables `RESEND_API_KEY`, opcional `CORREO_REMITENTE` y `APP_URL`).
 - Especificaciones y bitácora viven en `Instrucciones/`.
 
 ## 10. Migraciones SQL (`fondo-familiar/supabase/migrations/`)
@@ -106,8 +107,12 @@ Reglas de integridad: montos en pesos enteros (COP, sin decimales); movimientos 
 | 0008 | `perfiles.cuenta_pago`, `beneficiario_cadena()` |
 | 0009 | `saldo_calculado` sin cadena |
 | 0010 | `pagos_reportados.subido_por` |
+| 0011 | Carga inicial: aportes inicial y tecnológico de los 19 y los 6 préstamos vigentes del Excel (se ejecuta una sola vez) |
+| 0012 | `pagos_prestamo` (interés, mora y capital con comprobante) y `aprobar_pago_prestamo()` (crea los movimientos y cierra el préstamo si el capital llega a 0) |
 
 ## 11. Rutas principales
 - Asociado: `/` (Inicio), `/pagos`, `/recibos` (solo con turno), `/prestamos`, `/calendario`, `/perfil`, `/primer-ingreso`, `/completar-cuenta`, `/login`, `/elegir-panel`.
 - Admin: `/admin`, `/admin/pagos`, `/admin/prestamos`, `/admin/cuotas` (consulta), `/admin/asistencia`, `/admin/multas`, `/admin/aportes`, `/admin/capturas`, `/admin/asociados`, `/admin/exportar` (CSV).
-- API: `/api/mantener-activo` (cron).
+- PDF: `/estado-cuenta` (cada asociado el suyo; admin con `?id=`), `/admin/cartera-pdf`.
+- API (crons diarios, protegidos con `CRON_SECRET`): `/api/mantener-activo`, `/api/recordatorios` (cuotas e intereses de préstamos: 3 días antes, el día, y mora al día siguiente y cada 7 días).
+- Correos (`lib/correo.ts`, Resend por API HTTP): se omiten los correos provisionales `socioN@fondofamiliar...`.

@@ -13,11 +13,12 @@ export default function Admin() {
 
 async function AdminContenido() {
   await requerirAdmin();
-  const { count } = await (await crearClienteServidor())
-    .from("pagos_reportados")
-    .select("id", { count: "exact", head: true })
-    .eq("estado", "pendiente");
-  const porRevisar = count ?? 0;
+  const supabase = await crearClienteServidor();
+  const [{ count }, { count: countPrestamo }] = await Promise.all([
+    supabase.from("pagos_reportados").select("id", { count: "exact", head: true }).eq("estado", "pendiente"),
+    supabase.from("pagos_prestamo").select("id", { count: "exact", head: true }).eq("estado", "pendiente"),
+  ]);
+  const porRevisar = (count ?? 0) + (countPrestamo ?? 0);
 
   return (
     <main className="mx-auto w-full max-w-md flex-1 space-y-4 px-4 pt-8">

@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ArrowRight, CalendarClock, PiggyBank, Repeat, Receipt } from "lucide-react";
+import { ArrowRight, CalendarClock, CalendarDays, FileText, Landmark, PiggyBank, Receipt, Repeat, Upload } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
+import TarjetaPrestamo from "@/components/TarjetaPrestamo";
 import { pesos, fechaCorta, mesLargo } from "@/lib/format";
 import { estadoDeCuenta, resumenPrestamo } from "@/lib/cuentas";
 import { Suspense } from "react";
@@ -30,29 +31,78 @@ async function InicioContenido() {
     .eq("id", perfil.id)
     .maybeSingle();
   const vigente = prestamo?.estado === "vigente" ? prestamo : null;
+  const primera = cuenta.historial.findIndex((c) => !c.pagada);
+  const inicio = Math.max(0, (primera === -1 ? cuenta.historial.length : primera) - 1);
+  const visibles = cuenta.historial.slice(inicio, inicio + 4);
+  const resto = cuenta.historial.filter((c) => !visibles.includes(c));
 
   return (
     <div className="space-y-6">
+      {/* Degradado de fondo a todo el ancho */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[460px] bg-gradient-to-b from-accent/70 via-accent/15 to-transparent" />
+
       <header className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-muted">Hola,</p>
-          <h1 className="text-3xl font-bold tracking-tight">{perfil.nombre.split(" ")[0]}</h1>
+        <div className="flex items-center gap-3">
+          <div className="flex size-11 items-center justify-center rounded-full bg-foreground/15 text-lg font-bold">
+            {perfil.nombre.charAt(0)}
+          </div>
+          <div>
+            <p className="text-xs text-muted">Hola,</p>
+            <h1 className="text-lg font-bold leading-tight">{perfil.nombre.split(" ")[0]}</h1>
+          </div>
         </div>
         <ThemeToggle />
       </header>
 
+      {/* Cifra principal */}
+      <section className="flex flex-col items-center pb-2 pt-6 text-center">
+        <p className="text-sm text-muted">Ahorro acumulado</p>
+        <p className="mt-1 text-6xl font-extrabold tracking-tight">{pesos(cuenta.ahorro)}</p>
+        <Link
+          href={cuenta.cuota ? "/pagos" : "/calendario"}
+          className="mt-4 rounded-full bg-foreground/15 px-5 py-2 text-sm font-medium backdrop-blur"
+        >
+          {cuenta.cuota
+            ? `Cuota ${pesos(cuenta.cuota.total)} · ${cuenta.cuota.estado} · vence ${fechaCorta(cuenta.cuota.vence)}`
+            : "Cuotas al día"}
+        </Link>
+      </section>
+
+      {/* Acciones rápidas */}
+      <nav className="flex justify-between px-2">
+        {[
+          { href: "/pagos", label: "Pagar", icon: Upload },
+          { href: "/prestamos", label: "Préstamo", icon: Landmark },
+          { href: "/calendario", label: "Calendario", icon: CalendarDays },
+          { href: "/estado-cuenta", label: "Estado", icon: FileText, descarga: true },
+        ].map(({ href, label, icon: Icon, descarga }) => {
+          const contenido = (
+            <>
+              <span className="flex size-14 items-center justify-center rounded-full bg-card text-foreground shadow-lg">
+                <Icon size={24} />
+              </span>
+              <span className="mt-2 text-xs font-medium">{label}</span>
+            </>
+          );
+          return descarga ? (
+            <a key={href} href={href} className="flex flex-col items-center">
+              {contenido}
+            </a>
+          ) : (
+            <Link key={href} href={href} className="flex flex-col items-center">
+              {contenido}
+            </Link>
+          );
+        })}
+      </nav>
+
       {cuenta.cuota && (
         <Link
           href="/pagos"
-          className="flex items-center justify-between rounded-2xl bg-accent px-5 py-4 text-accent-fg shadow-lg"
+          className="flex items-center justify-center gap-2 rounded-full bg-foreground py-4 text-center font-semibold text-background"
         >
-          <span>
-            <span className="block text-lg font-bold">Pagar y subir comprobantes</span>
-            <span className="block text-xs opacity-80">
-              Cuota {pesos(cuenta.cuota.total)} · vence {fechaCorta(cuenta.cuota.vence)}
-            </span>
-          </span>
-          <ArrowRight size={22} />
+          Pagar y subir comprobantes
+          <ArrowRight size={20} />
         </Link>
       )}
 
@@ -73,97 +123,107 @@ async function InicioContenido() {
       )}
 
       {/* Tarjeta principal: préstamo vigente y cuánto puede pedir */}
-      <section className="rounded-3xl bg-gradient-to-br from-accent to-[#4a1d99] p-6 text-accent-fg shadow-lg">
+      <section className="space-y-3">
         {vigente ? (
-          <>
-            <p className="text-sm opacity-80">Tu préstamo</p>
-            <p className="mt-1 text-4xl font-bold tracking-tight">{pesos(vigente.cuentas.saldoCapital)}</p>
-            <div className="mt-4 flex justify-between text-sm">
-              <div>
-                <p className="opacity-70">Interés mensual fijo</p>
-                <p className="font-semibold">{pesos(vigente.cuentas.interesMensual)}</p>
-              </div>
-              <div className="text-right">
-                <p className="opacity-70">Interés pendiente</p>
-                <p className="font-semibold">{pesos(vigente.cuentas.interesPendiente)}</p>
-              </div>
-            </div>
-          </>
+          <TarjetaPrestamo
+            etiqueta="Tu préstamo"
+            valor={pesos(vigente.cuentas.saldoCapital)}
+            titular={perfil.nombre}
+            izquierda={{ titulo: "Interés mensual", valor: pesos(vigente.cuentas.interesMensual) }}
+            derecha={{ titulo: "Interés pendiente", valor: pesos(vigente.cuentas.interesPendiente) }}
+          />
         ) : prestamo ? (
-          <>
-            <p className="text-sm opacity-80">Solicitud {prestamo.estado === "radicado" ? "en votación" : "aprobada"}</p>
-            <p className="mt-1 text-4xl font-bold tracking-tight">{pesos(Number(prestamo.monto))}</p>
-          </>
+          <TarjetaPrestamo
+            etiqueta={prestamo.estado === "radicado" ? "Solicitud en votación" : "Solicitud aprobada"}
+            valor={pesos(Number(prestamo.monto))}
+            titular={perfil.nombre}
+          />
         ) : (
-          <>
-            <p className="text-sm opacity-80">Sin préstamo vigente</p>
-            <p className="mt-1 text-4xl font-bold tracking-tight">{pesos(puedePedir)}</p>
-            <p className="mt-1 text-sm opacity-80">disponible para solicitar</p>
-          </>
+          <TarjetaPrestamo
+            etiqueta="Disponible para ti"
+            valor={pesos(puedePedir)}
+            titular={perfil.nombre}
+            izquierda={{ titulo: "Tope", valor: pesos(tope) }}
+          />
         )}
         <Link
           href="/prestamos"
-          className="mt-5 flex items-center justify-between rounded-2xl bg-white/15 px-4 py-3 text-sm font-medium"
+          className="flex items-center justify-between rounded-full bg-card px-5 py-3.5 text-sm font-semibold"
         >
-          {prestamo ? "Ver detalle" : "Solicitar préstamo"}
+          {vigente ? "Abonar o ver mi préstamo" : prestamo ? "Ver detalle" : "Solicitar préstamo"}
           <ArrowRight size={18} />
         </Link>
-        <p className="mt-3 text-xs opacity-70">
-          Puedes pedir hasta {pesos(puedePedir)} según lo disponible en el fondo (tope {pesos(tope)}).
-        </p>
       </section>
 
       {/* Resumen del resto */}
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Mi resumen</h2>
-        <Fila icon={PiggyBank} titulo="Ahorro acumulado" valor={pesos(cuenta.ahorro)} />
-        {cuenta.cuota ? (
-          <Fila
-            icon={Receipt}
-            titulo={`Cuota mensual · ${cuenta.cuota.estado}`}
-            valor={pesos(cuenta.cuota.total)}
-            nota={`Vence ${fechaCorta(cuenta.cuota.vence)}`}
-          />
-        ) : (
-          <Fila icon={Receipt} titulo="Cuota mensual" valor="Al día" />
-        )}
-        {cuenta.miTurno && (
-          <Fila
-            icon={Repeat}
-            titulo="Mi turno de cadena"
-            valor={`Turno ${cuenta.miTurno.turno}`}
-            nota={fechaCorta(cuenta.miTurno.fecha_reunion)}
-          />
-        )}
-        {cuenta.proximaReunion && (
-          <Fila icon={CalendarClock} titulo="Próxima reunión" valor={`${fechaCorta(cuenta.proximaReunion)} · 7:30 p. m.`} />
-        )}
-        <Fila icon={Receipt} titulo="Multas pendientes" valor={pesos(cuenta.multasPendientes)} />
+      <section className="space-y-2">
+        <h2 className="px-1 text-lg font-semibold">Mi resumen</h2>
+        <div className="divide-y divide-card-border/60 rounded-[28px] bg-card px-2">
+          {cuenta.cuota ? (
+            <Fila
+              icon={Receipt}
+              titulo={`Cuota mensual · ${cuenta.cuota.estado}`}
+              valor={pesos(cuenta.cuota.total)}
+              nota={`Vence ${fechaCorta(cuenta.cuota.vence)}`}
+            />
+          ) : (
+            <Fila icon={Receipt} titulo="Cuota mensual" valor="Al día" />
+          )}
+          {cuenta.miTurno && (
+            <Fila
+              icon={Repeat}
+              titulo="Mi turno de cadena"
+              valor={`Turno ${cuenta.miTurno.turno}`}
+              nota={fechaCorta(cuenta.miTurno.fecha_reunion)}
+            />
+          )}
+          {cuenta.proximaReunion && (
+            <Fila icon={CalendarClock} titulo="Próxima reunión" valor={`${fechaCorta(cuenta.proximaReunion)} · 7:30 p. m.`} />
+          )}
+          <Fila icon={PiggyBank} titulo="Multas pendientes" valor={pesos(cuenta.multasPendientes)} />
+        </div>
       </section>
 
       <section className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Mis cuotas</h2>
-          <a href="/estado-cuenta" className="text-sm text-accent underline">
-            Descargar estado de cuenta (PDF)
-          </a>
-        </div>
-        {cuenta.historial.map((c) => (
-          <div key={c.periodo} className="flex items-center justify-between rounded-2xl border border-card-border bg-card p-3 text-sm">
-            <div>
-              <p>{mesLargo(c.periodo)}</p>
-              <p className="text-xs text-muted">{pesos(c.total)}</p>
-            </div>
-            <span
-              className={`rounded-full px-2 py-1 text-xs ${
-                c.pagada ? "bg-accent-soft text-accent" : c.vencida ? "text-danger" : "bg-card-border text-muted"
-              }`}
-            >
-              {c.pagada ? "Pagada" : c.vencida ? "En mora" : "Pendiente"}
-            </span>
+        <h2 className="px-1 text-lg font-semibold">Mis cuotas</h2>
+        <div className="rounded-[28px] bg-card p-2">
+          <div className="divide-y divide-card-border/60">
+            {visibles.map((c) => (
+              <FilaCuota key={c.periodo} c={c} />
+            ))}
           </div>
-        ))}
+          {resto.length > 0 && (
+            <details className="group">
+              <summary className="cursor-pointer list-none py-3 text-center font-semibold group-open:hidden">Ver todas</summary>
+              <div className="divide-y divide-card-border/60 border-t border-card-border/60">
+                {resto.map((c) => (
+                  <FilaCuota key={c.periodo} c={c} />
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
       </section>
+    </div>
+  );
+}
+
+type CuotaFila = { periodo: string; total: number; pagada: boolean; vencida: boolean };
+
+function FilaCuota({ c }: { c: CuotaFila }) {
+  return (
+    <div className="flex items-center justify-between px-2 py-3.5">
+      <div>
+        <p className="font-medium">{mesLargo(c.periodo)}</p>
+        <p className="text-xs text-muted">{pesos(c.total)}</p>
+      </div>
+      <span
+        className={`rounded-full px-3 py-1 text-xs font-medium ${
+          c.pagada ? "bg-accent-soft text-accent" : c.vencida ? "bg-danger/15 text-danger" : "bg-card-border text-muted"
+        }`}
+      >
+        {c.pagada ? "Pagada" : c.vencida ? "En mora" : "Pendiente"}
+      </span>
     </div>
   );
 }
@@ -180,8 +240,8 @@ function Fila({
   nota?: string;
 }) {
   return (
-    <div className="flex items-center gap-4 rounded-2xl border border-card-border bg-card p-4">
-      <div className="flex size-11 items-center justify-center rounded-xl bg-accent-soft text-accent">
+    <div className="flex items-center gap-4 px-2 py-3.5">
+      <div className="flex size-11 items-center justify-center rounded-full bg-accent-soft text-accent">
         <Icon size={22} />
       </div>
       <div className="flex-1">

@@ -33,6 +33,7 @@ Aplicación web privada (Art. 7 del estatuto) donde cada asociado verifica sus a
 - Interés: 4% mensual **fijo sobre el capital inicial** (ej.: préstamo de $100.000 → $4.000 cada mes). La cuota de interés no baja ni varía hasta cancelar todo el capital, aunque haya abonos (Art. 14 y 15).
 - Plazo indefinido: si tarda 2 años en pagar el capital, paga el interés fijo los 24 meses.
 - Nuevo préstamo solo tras cancelar el anterior por completo.
+- Pago del préstamo desde la app (Registrar pago → Préstamo): interés del mes, abono a capital por cualquier valor o pago total, siempre con comprobante; lo aprueba un administrador y no se puede deshacer. Para cancelar todo el capital hay que pagar también el interés pendiente.
 - Fecha límite de pago (cuota e intereses): el día de la reunión. Mora desde el día siguiente; se cobra interés sobre intereses (Art. 16).
 - Préstamo a externo con padrino: el padrino responde solidariamente (Art. 13).
 - Obligación de dinamizar: si hay caja, quien nunca ha pedido préstamo debe pedir ≥ $100.000 o apadrinar a un externo (Art. 5).
@@ -92,7 +93,7 @@ Aplicación web privada (Art. 7 del estatuto) donde cada asociado verifica sus a
 ## 8. Experiencia de uso (diseño)
 - **Mobile-first**, uso principal desde celular; instalable como PWA.
 - Referencia visual (carpeta `Instrucciones/Pantallazos`): tema oscuro, tarjetas redondeadas, barra de navegación inferior flotante (Inicio · Buscar · Calendario · Perfil), calendario mensual con puntos en fechas de eventos, resumen grande de totales.
-- Pantallas asociado: Inicio (botón "Pagar y subir comprobantes", resumen, historial de cuotas) · Préstamos · Calendario (aún maqueta) · Perfil (cuenta de pagos, tema) · Pagar · Confirmar pagos (solo con turno).
+- Pantallas asociado: Inicio (botón "Pagar y subir comprobantes", resumen, historial de cuotas) · Préstamos · Calendario (próxima reunión, 19 meses con tu cuota y turno de cadena) · Perfil (cuenta de pagos, tema) · Pagar · Confirmar pagos (solo con turno).
 - Tema oscuro por defecto con botón para claro; acento morado. Los administradores eligen panel (Mi cuenta / Administración) tras iniciar sesión.
 - Los botones de guardado se bloquean mientras se procesan y la pantalla se actualiza al instante (asistencia, aprobaciones, confirmaciones) para evitar dobles clics.
 

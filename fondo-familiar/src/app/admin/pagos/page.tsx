@@ -2,10 +2,11 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
-import { hoyColombia, mesLargo, pesos } from "@/lib/format";
+import { fechaCorta, hoyColombia, mesLargo, pesos } from "@/lib/format";
 import RevisionPago from "./RevisionPago";
 import CopiarPendientes from "./CopiarPendientes";
 import SubirComprobanteAdmin from "./SubirComprobanteAdmin";
+import RevisionPagoPrestamo from "./RevisionPagoPrestamo";
 
 export default function PagosReportados({ searchParams }: PageProps<"/admin/pagos">) {
   return (
@@ -53,7 +54,19 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pag
   const cargadoPor = (r: { subido_por: string | null; asociado_id: string }) =>
     r.subido_por && r.subido_por !== r.asociado_id ? ((personas ?? []).find((p) => p.id === r.subido_por)?.nombre ?? "un administrador") : null;
 
-  const rutas = (reportes ?? []).map((r) => r.ruta_archivo);
+  // Pagos de préstamo: los pendientes primero, luego los 10 más recientes ya revisados.
+  const { data: pp } = await supabase
+    .from("pagos_prestamo")
+    .select("id, monto_interes, monto_mora, monto_capital, estado, nota, creado_en, ruta_archivo, perfiles!pagos_prestamo_asociado_id_fkey(nombre)")
+    .order("creado_en", { ascending: false })
+    .limit(40);
+  const pagosPrestamo = [
+    ...(pp ?? []).filter((x) => x.estado === "pendiente"),
+    ...(pp ?? []).filter((x) => x.estado !== "pendiente").slice(0, 10),
+  ];
+  const prestamosPorRevisar = pagosPrestamo.filter((x) => x.estado === "pendiente").length;
+
+  const rutas = [...(reportes ?? []).map((r) => r.ruta_archivo), ...pagosPrestamo.map((x) => x.ruta_archivo)];
   const { data: firmadas } = rutas.length
     ? await supabase.storage.from("comprobantes-pago").createSignedUrls(rutas, 3600)
     : { data: [] };
@@ -105,6 +118,34 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pag
         ← Administración
       </Link>
       <h1 className="text-3xl font-bold tracking-tight">Pagos reportados</h1>
+
+      {pagosPrestamo.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-lg font-semibold">
+            Pagos de préstamo {prestamosPorRevisar > 0 && <span className="text-sm text-accent">· {prestamosPorRevisar} por revisar</span>}
+          </h2>
+          {pagosPrestamo.map((x) => {
+            const partes = [
+              Number(x.monto_interes) > 0 && `interés ${pesos(Number(x.monto_interes))}`,
+              Number(x.monto_mora) > 0 && `mora ${pesos(Number(x.monto_mora))}`,
+              Number(x.monto_capital) > 0 && `capital ${pesos(Number(x.monto_capital))}`,
+            ].filter(Boolean);
+            return (
+              <RevisionPagoPrestamo
+                key={`${x.id}-${x.estado}`}
+                id={x.id}
+                asociado={(x.perfiles as unknown as { nombre: string } | null)?.nombre ?? ""}
+                detalle={partes.join(" · ")}
+                total={pesos(Number(x.monto_interes) + Number(x.monto_mora) + Number(x.monto_capital))}
+                fecha={fechaCorta(x.creado_en.slice(0, 10))}
+                estadoInicial={x.estado as "pendiente" | "aprobado" | "rechazado"}
+                notaInicial={x.nota}
+                url={urlDe(x.ruta_archivo)}
+              />
+            );
+          })}
+        </section>
+      )}
 
       <div className="flex gap-2 overflow-x-auto pb-2">
         {meses.map((t) => (

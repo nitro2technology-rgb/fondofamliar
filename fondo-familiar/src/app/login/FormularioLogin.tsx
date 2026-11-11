@@ -57,7 +57,7 @@ export default function FormularioLogin() {
       <button
         type="submit"
         disabled={cargando}
-        className="w-full rounded-2xl bg-accent py-4 font-semibold text-accent-fg disabled:opacity-60"
+        className="w-full rounded-full bg-foreground py-4 font-semibold text-background disabled:opacity-60"
       >
         {cargando ? "Ingresando…" : "Ingresar"}
       </button>

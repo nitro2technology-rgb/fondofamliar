@@ -2,11 +2,11 @@
 
 /* Tema oscuro por defecto; la clase "light" en <html> activa el claro. */
 :root {
-  --background: #0b0b10;
+  --background: #050507;
   --foreground: #f2f2f7;
   --muted: #9a9aa8;
-  --card: #16161f;
-  --card-border: #26263a;
+  --card: #14141b;
+  --card-border: #22222c;
   --accent: #8b3df0;
   --accent-soft: #2a1a4d;
   --accent-fg: #ffffff;
@@ -47,4 +47,25 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Campos de archivo: el "Seleccionar archivo" se ve como un botón en toda la plataforma. */
+input[type="file"] {
+  cursor: pointer;
+  color: var(--muted);
+}
+input[type="file"]::file-selector-button {
+  margin-right: 0.75rem;
+  cursor: pointer;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  padding: 0.55rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: opacity 0.15s;
+}
+input[type="file"]:hover::file-selector-button {
+  opacity: 0.85;
 }
