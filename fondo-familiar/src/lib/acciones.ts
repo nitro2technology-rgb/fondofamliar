@@ -6,7 +6,8 @@ import { revalidatePath } from "next/cache";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { requerirAdmin, requerirPerfil } from "@/lib/auth";
-import { hoyColombia } from "@/lib/format";
+import { hoyColombia, pesos } from "@/lib/format";
+import { enviarCorreos, plantilla } from "@/lib/correo";
 
 export type EstadoForm = { error?: string; ok?: boolean };
 
@@ -533,6 +534,17 @@ export async function solicitarPrestamo(_: EstadoForm, formData: FormData): Prom
     return {
       error: error.code === "23505" ? "Ya tienes una solicitud o un préstamo en curso." : "No se pudo radicar la solicitud.",
     };
+  }
+  // Aviso a los directivos (si falla el correo, la solicitud ya quedó radicada).
+  try {
+    const { data: admins } = await clienteAdmin().from("perfiles").select("correo").in("rol", ["tesorero", "contador", "fiscal"]).eq("activo", true);
+    await enviarCorreos(
+      (admins ?? []).map((a) => a.correo),
+      "Nueva solicitud de préstamo",
+      plantilla("Nueva solicitud de préstamo", [`${perfil.nombre} solicitó ${pesos(monto)}.`, "Revísala y vota en el panel de administración."], { texto: "Ir a préstamos", ruta: "/admin/prestamos" }),
+    );
+  } catch (e) {
+    console.error("Aviso de solicitud falló", e);
   }
   revalidatePath("/prestamos");
   revalidatePath("/");
