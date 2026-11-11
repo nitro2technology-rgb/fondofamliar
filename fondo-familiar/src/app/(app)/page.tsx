@@ -142,7 +142,12 @@ async function InicioContenido() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold">Mis cuotas</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Mis cuotas</h2>
+          <a href="/estado-cuenta" className="text-sm text-accent underline">
+            Descargar estado de cuenta (PDF)
+          </a>
+        </div>
         {cuenta.historial.map((c) => (
           <div key={c.periodo} className="flex items-center justify-between rounded-2xl border border-card-border bg-card p-3 text-sm">
             <div>
