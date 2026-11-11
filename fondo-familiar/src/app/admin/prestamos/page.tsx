@@ -44,6 +44,20 @@ async function Contenido() {
     externo: (x.externos as unknown as { nombre: string } | null)?.nombre ?? null,
   }));
 
+  const porCobrar = lista
+    .filter((x) => x.estado === "vigente")
+    .reduce(
+      (a, x) => {
+        const c = cuentasPrestamo(x.desembolsado_en, (movs ?? []).filter((o) => o.prestamo_id === x.id), reuniones, hoy, {
+          interes: p.interes_prestamo_pct ?? 4,
+          mora: p.interes_mora_pct ?? 4,
+        });
+        return { interes: a.interes + c.interesPendiente, mora: a.mora + c.moraPendiente, total: a.total + c.interesPendiente + c.moraPendiente };
+      },
+      { interes: 0, mora: 0, total: 0 },
+    );
+  const proximaReunion = [...reuniones].sort().find((f) => f >= hoy) ?? null;
+
   return (
     <main className="mx-auto w-full max-w-md flex-1 space-y-4 px-4 py-8">
       <Link href="/admin" className="text-sm text-accent underline">
@@ -52,6 +66,16 @@ async function Contenido() {
       <h1 className="text-3xl font-bold tracking-tight">Préstamos</h1>
       <p className="text-sm text-muted">Caja disponible para prestar: {pesos(Number(caja ?? 0))}</p>
 
+      {porCobrar.total > 0 && (
+        <div className="rounded-2xl border border-accent bg-card p-4">
+          <p className="text-sm text-muted">Por cobrar en intereses (a hoy)</p>
+          <p className="text-2xl font-bold">{pesos(porCobrar.total)}</p>
+          <p className="text-xs text-muted">
+            Interés {pesos(porCobrar.interes)} · Mora estimada {pesos(porCobrar.mora)}
+            {proximaReunion && ` · próxima reunión ${fechaCorta(proximaReunion)}`}
+          </p>
+        </div>
+      )}
       {lista.length === 0 && <p className="text-muted">No hay solicitudes ni préstamos en curso.</p>}
 
       {lista.map((x, i) => {
