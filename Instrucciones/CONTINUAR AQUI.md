@@ -106,7 +106,7 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 1. Usuario ejecuta `0003` en el SQL Editor de Supabase.
 2. Ejecutar el script de carga (crea 19 usuarios, perfiles con rol/ciudad/celular y los 19 turnos de la cadena).
 3. Subir a GitHub (deploy en Vercel) y probar Primer ingreso en producción.
-4. Agregar celulares de Freddy y Gianni en `/admin/asociados`.
+3. Agregar celulares de Freddy y Gianni en `/admin/asociados`.
 5. Nota: la cuenta de administrador previa del usuario (correo propio) ya no se necesita; Nicolás entra por Primer ingreso como fiscal.
 
 ## Sesión 5 (cierre) — Primer ingreso funcionando en producción
@@ -261,15 +261,14 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - Sesión 7: pagos con comprobante (fondo y cadena), aprobación de admins, confirmación del receptor de la cadena (`/recibos` + ventana emergente), cuenta o llave para recibir pagos, capturas NU editables con visor flotante y compresión, botones anti doble clic, cron diario anti-pausa de Supabase, "Copiar lista de pendientes" para WhatsApp.
 - Reglas vigentes: la cadena se paga directo al receptor (fuera de la cuenta NU); una cuota solo queda pagada con comprobantes aprobados (fondo + cadena si aplica); el pago de cadena lo confirma el receptor **o** un admin; si alguien no sabe subir, el admin carga el comprobante; `/admin/cuotas` es solo consulta.
 
-**Migraciones SQL**: 0001–0009 ejecutadas por el usuario. **0010 (`pagos_reportados.subido_por`) PENDIENTE de ejecutar**: sin ella falla el envío de comprobantes (asociado y admin).
+**Migraciones SQL**: 0001–0010 ejecutadas por el usuario (0010 confirmada al cierre de la sesión 7).
 
 **Pendiente — usuario (antes de seguir)**
-1. Ejecutar `0010_comprobante_cargado_por.sql` en el SQL Editor (proyecto correcto de Supabase).
-2. Variable `CRON_SECRET` en Vercel (texto largo aleatorio) + Redeploy, para proteger el cron `/api/mantener-activo` (opcional pero recomendado).
-3. Probar de punta a punta en producción: subir comprobantes como asociado → aprobar en `/admin/pagos` → confirmar como receptor en `/recibos` → ver la cuota pagada en Inicio; asistencia/multas; captura NU y conciliación; préstamo completo (solicitud → votos → desembolso → interés/abono). Revertir a mano en el SQL Editor lo que sea de prueba (cuotas marcadas a mano antes quedan pagadas sin comprobante).
+1. Variable `CRON_SECRET` en Vercel (texto largo aleatorio) + Redeploy, para proteger el cron `/api/mantener-activo` (opcional pero recomendado).
+2. Probar de punta a punta en producción: subir comprobantes como asociado → aprobar en `/admin/pagos` → confirmar como receptor en `/recibos` → ver la cuota pagada en Inicio; asistencia/multas; captura NU y conciliación; préstamo completo (solicitud → votos → desembolso → interés/abono). Revertir a mano en el SQL Editor lo que sea de prueba (cuotas marcadas a mano antes quedan pagadas sin comprobante).
 4. Agregar celulares de Freddy Yamá y Gianni Obando en `/admin/asociados`; pedir a los 19 que activen su cuenta con "Primer ingreso" y registren su cuenta o llave de pagos.
-5. Entregar el Excel del fondo (migración de pagos históricos; esos meses no tendrán comprobantes, hay que decidir cómo cargarlos).
-6. Confirmar con los directivos: fórmula de mora (provisional, 4% mensual sobre cada interés vencido y no pagado), definición de ahorro acumulado y caja prestable, premios de juegos pagados en la reunión, multa de ausencia solo en Pasto, y el riesgo de usura del 4% mensual.
+4. Entregar el Excel del fondo (migración de pagos históricos; esos meses no tendrán comprobantes, hay que decidir cómo cargarlos).
+5. Confirmar con los directivos: fórmula de mora (provisional, 4% mensual sobre cada interés vencido y no pagado), definición de ahorro acumulado y caja prestable, premios de juegos pagados en la reunión, multa de ausencia solo en Pasto, y el riesgo de usura del 4% mensual.
 
 **Pendiente — desarrollo (Semana 4, orden sugerido)**
 1. Calendario real (cuotas, reuniones, turno de cadena, vencimientos) y Perfil completo (hoy Calendario es maqueta).

@@ -4,6 +4,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { esAdmin, requerirPerfil } from "@/lib/auth";
 import { cerrarSesion } from "@/lib/acciones";
 import { crearClienteServidor } from "@/lib/supabase/server";
+import { fechaCorta } from "@/lib/format";
 import FormularioCuenta from "./FormularioCuenta";
 
 const etiquetaRol = {
@@ -24,7 +25,8 @@ export default function Perfil() {
 async function PerfilContenido() {
   const perfil = await requerirPerfil();
   const supabase = await crearClienteServidor();
-  const { data: extra } = await supabase.from("perfiles").select("cuenta_pago").eq("id", perfil.id).maybeSingle();
+  const { data: turno } = await supabase.from("cadena_turnos").select("turno, fecha_reunion").eq("asociado_id", perfil.id).maybeSingle();
+  const { data: extra } = await supabase.from("perfiles").select("cuenta_pago, celular, ciudad").eq("id", perfil.id).maybeSingle();
 
   return (
     <div className="space-y-6">
@@ -33,6 +35,9 @@ async function PerfilContenido() {
         <p className="font-semibold">{perfil.nombre}</p>
         <p className="text-sm text-muted">{perfil.correo}</p>
         <p className="text-sm text-muted">{etiquetaRol[perfil.rol]}</p>
+        {extra?.celular && <p className="text-sm text-muted">Celular: {extra.celular}</p>}
+        {extra?.ciudad && <p className="text-sm text-muted">Ciudad: {extra.ciudad}</p>}
+        {turno && (<p className="text-sm text-muted">Turno de cadena #{turno.turno}: {fechaCorta(turno.fecha_reunion)}</p>)}
       </div>
       <FormularioCuenta actual={extra?.cuenta_pago ?? ""} />
       <div className="flex items-center justify-between rounded-2xl border border-card-border bg-card p-4">

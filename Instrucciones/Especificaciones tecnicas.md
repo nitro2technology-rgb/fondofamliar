@@ -105,7 +105,7 @@ Reglas de integridad: montos en pesos enteros (COP, sin decimales); movimientos 
 | 0007 | `pagos_reportados`, bucket `comprobantes-pago`, índice único de multas, borrar capturas NU |
 | 0008 | `perfiles.cuenta_pago`, `beneficiario_cadena()` |
 | 0009 | `saldo_calculado` sin cadena |
-| 0010 | `pagos_reportados.subido_por` (**pendiente de ejecutar**) |
+| 0010 | `pagos_reportados.subido_por` |
 
 ## 11. Rutas principales
 - Asociado: `/` (Inicio), `/pagos`, `/recibos` (solo con turno), `/prestamos`, `/calendario`, `/perfil`, `/primer-ingreso`, `/completar-cuenta`, `/login`, `/elegir-panel`.
