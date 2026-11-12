@@ -4,9 +4,8 @@ import { startTransition, useActionState, useState, type FormEvent } from "react
 import { reportarPago, type EstadoForm } from "@/lib/acciones";
 import { datosConImagenComprimida, errorDeArchivo } from "@/lib/comprimir";
 import VisorImagen from "@/components/VisorImagen";
+import SelectorArchivo from "@/components/SelectorArchivo";
 
-const campo =
-  "w-full rounded-xl border border-card-border bg-background px-3 py-2 text-sm outline-none focus:border-accent";
 
 const ETIQUETA = {
   pendiente: ["En revisión", "bg-card-border text-muted"],
@@ -72,7 +71,7 @@ export default function FormularioPago({
         <form onSubmit={alEnviar} className="space-y-3">
           <input type="hidden" name="cuota_id" value={cuotaId} />
           <input type="hidden" name="tipo" value={tipo} />
-          <input type="file" name="archivo" accept="image/*" className={campo} />
+          <SelectorArchivo titulo="Subir comprobante" ayuda="Pantallazo del pago" />
           <div className="flex items-center gap-3">
             <button disabled={ocupado} className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-fg disabled:opacity-60">
               {comprimiendo ? "Comprimiendo…" : pendiente ? "Enviando…" : reporte ? "Reemplazar comprobante" : "Enviar comprobante"}

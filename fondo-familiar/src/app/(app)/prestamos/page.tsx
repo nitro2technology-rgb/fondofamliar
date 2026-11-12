@@ -5,7 +5,10 @@ import { cuentasPrestamo } from "@/lib/prestamos";
 import { fechaCorta, hoyColombia, pesos } from "@/lib/format";
 import Link from "next/link";
 import TarjetaPrestamo from "@/components/TarjetaPrestamo";
+import SolicitudRapida from "@/components/SolicitudRapida";
 import FormularioSolicitud from "./FormularioSolicitud";
+import { estadoDeCuenta } from "@/lib/cuentas";
+import { Lock } from "lucide-react";
 
 export default function Prestamos() {
   return (
@@ -50,6 +53,10 @@ async function Contenido() {
   const hoy = hoyColombia();
   const puedePedir = Math.min(p.tope_prestamo ?? 1_000_000, Math.max(0, Number(caja ?? 0)));
 
+  const cuenta = enCurso ? null : await estadoDeCuenta(perfil.id);
+  const bloqueoMultas = (cuenta?.multasPendientes ?? 0) > 0;
+  const bloqueoMora = cuenta?.cuota?.estado === "En mora";
+
   const posicion = enCurso && enCurso.estado !== "vigente" ? await supabase.rpc("posicion_cola", { p_prestamo: enCurso.id }) : null;
 
   const { data: movs } = enCurso
@@ -74,13 +81,44 @@ async function Contenido() {
     <div className="space-y-5">
       <h1 className="text-3xl font-bold tracking-tight">Préstamos</h1>
 
-      {!enCurso && (
+      {!enCurso && (bloqueoMultas || bloqueoMora) && (
+        <section className="space-y-3 rounded-[28px] border-2 border-danger bg-card p-5">
+          <p className="flex items-center gap-2 font-bold text-danger">
+            <Lock size={18} /> Solicitud bloqueada
+          </p>
+          {bloqueoMultas && cuenta && (
+            <div className="space-y-1 text-sm">
+              <p>Debes {pesos(cuenta.multasPendientes)} en multas:</p>
+              {cuenta.multas.map((m, i) => (
+                <p key={i} className="text-muted">
+                  {m.motivo}
+                  {m.fecha && ` · ${fechaCorta(m.fecha)}`} · {pesos(m.monto)}
+                </p>
+              ))}
+              <p className="pt-1 text-muted">Págalas a un directivo; cuando las marque como cobradas se desbloquea.</p>
+            </div>
+          )}
+          {bloqueoMora && (
+            <p className="text-sm">
+              Tu cuota está en mora. <Link href="/pagos" className="font-semibold text-accent">Súbela aquí</Link> para poder pedir.
+            </p>
+          )}
+        </section>
+      )}
+
+      {!enCurso && !bloqueoMultas && !bloqueoMora && (
         <>
           <p className="text-sm text-muted">
             Hay {pesos(puedePedir)} disponibles para prestar (tope {pesos(p.tope_prestamo ?? 1_000_000)}). Si no alcanza, tu
             solicitud queda en cola por orden de radicación.
           </p>
-          <FormularioSolicitud />
+          <SolicitudRapida caja={Math.max(0, Number(caja ?? 0))} tope={p.tope_prestamo ?? 1_000_000} />
+          <details className="rounded-[28px] bg-card p-4">
+            <summary className="cursor-pointer text-sm font-semibold">Solicitar para un externo que apadrino</summary>
+            <div className="pt-3">
+              <FormularioSolicitud />
+            </div>
+          </details>
         </>
       )}
 

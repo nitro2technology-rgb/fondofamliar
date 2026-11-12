@@ -9,6 +9,7 @@ import { requerirAdmin, requerirPerfil } from "@/lib/auth";
 import { hoyColombia, pesos } from "@/lib/format";
 import { enviarCorreos, plantilla } from "@/lib/correo";
 import { resumenPrestamo } from "@/lib/cuentas";
+import { plazoVencido } from "@/lib/cierre";
 
 export type EstadoForm = { error?: string; ok?: boolean };
 
@@ -616,6 +617,10 @@ export async function reportarPagoPrestamo(_: EstadoForm, formData: FormData): P
   const capital = montoDe(formData.get("capital"));
   const archivo = formData.get("archivo");
 
+  const vencido = await plazoVencido();
+  if (vencido) {
+    return { error: `El plazo para devolver préstamos terminó a las ${vencido.horaLimite}, antes de la reunión de liquidación. Habla con un directivo.` };
+  }
   if (interes + mora + capital <= 0) return { error: "Escribe cuánto vas a pagar (interés, mora o abono a capital)." };
   if (!(archivo instanceof File) || archivo.size === 0) return { error: "Adjunta la captura del pago." };
   if (!archivo.type.startsWith("image/")) return { error: "El archivo debe ser una imagen (pantallazo o foto del comprobante)." };
@@ -762,4 +767,62 @@ export async function guardarJuegos(formData: FormData) {
     utilidad: recaudo - Math.floor(recaudo / 2),
   });
   revalidatePath("/admin/asistencia");
+}
+
+// Un administrador sube por el deudor el comprobante de un pago de préstamo (queda "por revisar").
+export async function subirPagoPrestamoAdmin(_: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const admin = await requerirAdmin();
+  const prestamoId = String(formData.get("prestamo_id") ?? "");
+  const interes = montoDe(formData.get("interes"));
+  const mora = montoDe(formData.get("mora"));
+  const capital = montoDe(formData.get("capital"));
+  const archivo = formData.get("archivo");
+
+  if (interes + mora + capital <= 0) return { error: "Escribe cuánto se pagó (interés, mora o abono a capital)." };
+  if (!(archivo instanceof File) || archivo.size === 0) return { error: "Adjunta la captura del pago." };
+  if (!archivo.type.startsWith("image/")) return { error: "El archivo debe ser una imagen." };
+  if (archivo.size > 8 * 1024 * 1024) return { error: "La imagen pesa más de 8 MB." };
+
+  const db = clienteAdmin();
+  const [{ data: prestamo }, { data: movs }] = await Promise.all([
+    db.from("prestamos").select("id, asociado_id, estado").eq("id", prestamoId).maybeSingle(),
+    db.from("movimientos_prestamo").select("tipo, monto").eq("prestamo_id", prestamoId),
+  ]);
+  if (!prestamo || prestamo.estado !== "vigente") return { error: "Ese préstamo no está vigente." };
+  const saldo = (movs ?? []).reduce(
+    (s, m) => s + (m.tipo === "desembolso" ? Number(m.monto) : m.tipo === "abono_capital" ? -Number(m.monto) : 0),
+    0,
+  );
+  if (capital > saldo) return { error: "El abono a capital supera el saldo del préstamo." };
+
+  const ruta = `${prestamo.asociado_id}/prestamo-${prestamoId}-${Date.now()}.jpg`;
+  const { error: errorSubida } = await db.storage.from("comprobantes-pago").upload(ruta, archivo);
+  if (errorSubida) return { error: "No se pudo subir la imagen." };
+
+  const { error } = await db.from("pagos_prestamo").insert({
+    prestamo_id: prestamoId,
+    asociado_id: prestamo.asociado_id,
+    monto_interes: interes,
+    monto_mora: mora,
+    monto_capital: capital,
+    ruta_archivo: ruta,
+    subido_por: admin.id,
+  });
+  if (error) {
+    await db.storage.from("comprobantes-pago").remove([ruta]);
+    return { error: "No se pudo registrar el pago." };
+  }
+  revalidatePath("/admin/pagos");
+  revalidatePath("/admin/prestamos");
+  return { ok: true };
+}
+
+// Marca que el usuario ya vio el tutorial de su panel (si la columna aún no existe, no pasa nada).
+export async function marcarTutorialVisto(panel: "asociado" | "admin") {
+  const perfil = await requerirPerfil();
+  if (panel === "admin" && perfil.rol === "asociado") return;
+  await clienteAdmin()
+    .from("perfiles")
+    .update(panel === "admin" ? { tutorial_admin: true } : { tutorial_asociado: true })
+    .eq("id", perfil.id);
 }

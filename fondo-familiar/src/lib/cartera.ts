@@ -8,7 +8,7 @@ export async function carteraVigente(hoy: string) {
   const [{ data: prestamos }, { data: movs }, { data: turnos }, { data: params }] = await Promise.all([
     db
       .from("prestamos")
-      .select("id, desembolsado_en, perfiles!prestamos_asociado_id_fkey(nombre, correo, activo)")
+      .select("id, asociado_id, desembolsado_en, perfiles!prestamos_asociado_id_fkey(nombre, correo, activo)")
       .eq("estado", "vigente"),
     db.from("movimientos_prestamo").select("prestamo_id, tipo, monto, fecha"),
     db.from("cadena_turnos").select("fecha_reunion"),
@@ -26,6 +26,6 @@ export async function carteraVigente(hoy: string) {
       hoy,
       { interes: p.interes_prestamo_pct ?? 4, mora: p.interes_mora_pct ?? 4 },
     );
-    return { id: x.id, nombre: perfil?.nombre ?? "", correo: perfil?.correo ?? null, activo: perfil?.activo ?? false, cuentas };
+    return { id: x.id, asociadoId: x.asociado_id as string, nombre: perfil?.nombre ?? "", correo: perfil?.correo ?? null, activo: perfil?.activo ?? false, cuentas };
   });
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { Eye, X } from "lucide-react";
 
 // Muestra una imagen en una ventana flotante dentro de la misma página.
 export default function VisorImagen({ url, texto = "Ver captura" }: { url: string; texto?: string }) {
@@ -16,7 +16,12 @@ export default function VisorImagen({ url, texto = "Ver captura" }: { url: strin
 
   return (
     <>
-      <button type="button" onClick={() => setAbierto(true)} className="text-sm text-accent underline">
+      <button
+        type="button"
+        onClick={() => setAbierto(true)}
+        className="inline-flex items-center gap-1.5 rounded-full bg-background px-3.5 py-2 text-xs font-semibold"
+      >
+        <Eye size={14} />
         {texto}
       </button>
       {abierto && (

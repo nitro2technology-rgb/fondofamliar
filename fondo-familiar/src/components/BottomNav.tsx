@@ -15,12 +15,12 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-card-border/60 bg-background/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
+    <nav data-tour="nav" className="fixed inset-x-0 bottom-0 z-10 border-t border-card-border/60 bg-background/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
       <ul className="mx-auto flex max-w-md">
         {items.map(({ href, label, icon: Icon }) => {
           const activo = href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (
-            <li key={href} className="flex-1">
+            <li key={href} data-tour={`nav-${label.toLowerCase()}`} className="flex-1">
               <Link
                 href={href}
                 className={`flex flex-col items-center gap-1 pb-2 pt-3 text-[11px] font-medium transition-colors ${

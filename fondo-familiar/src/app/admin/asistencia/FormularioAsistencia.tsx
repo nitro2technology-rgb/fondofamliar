@@ -1,97 +1,128 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
+import { CheckCircle2 } from "lucide-react";
+import Avatar from "@/components/Avatar";
 import { guardarAsistencia } from "@/lib/acciones";
 
 const ESTADOS = [
-  ["puntual", "Puntual"],
-  ["tarde", "Tarde"],
-  ["ausente", "Ausente"],
-  ["justificada", "Excusa"],
+  ["puntual", "Puntual", "bg-ok text-white"],
+  ["tarde", "Tarde", "bg-amber-500 text-white"],
+  ["ausente", "Ausente", "bg-danger text-white"],
+  ["justificada", "Excusa", "bg-foreground text-background"],
 ] as const;
 
 type Persona = { id: string; nombre: string; ciudad: string | null };
 
 // Todos arrancan como "puntual": el admin solo cambia a quien llegó tarde, faltó o se excusó.
+// Cada cambio muestra la multa que generará; al guardar, las multas quedan listas para cobrar en «Multas».
 export default function FormularioAsistencia({
   reunionId,
   personas,
   guardados,
+  multaTarde,
+  multaAusencia,
 }: {
   reunionId: string;
   personas: Persona[];
   guardados: Record<string, string>;
+  multaTarde: number;
+  multaAusencia: number;
 }) {
   const inicial = Object.fromEntries(personas.map((p) => [p.id, guardados[p.id] ?? "puntual"]));
   const [estados, setEstados] = useState<Record<string, string>>(inicial);
   const [base, setBase] = useState<Record<string, string> | null>(Object.keys(guardados).length ? inicial : null);
   const [error, setError] = useState("");
+  const [guardadoAhora, setGuardadoAhora] = useState(false);
   const [guardando, iniciar] = useTransition();
 
   const sinCambios = base !== null && personas.every((p) => estados[p.id] === base[p.id]);
-  const tardes = personas.filter((p) => estados[p.id] === "tarde").length;
-  const ausentes = personas.filter((p) => estados[p.id] === "ausente").length;
+  const multaDe = (p: Persona) =>
+    estados[p.id] === "tarde" ? multaTarde : estados[p.id] === "ausente" && p.ciudad === "Pasto" ? multaAusencia : 0;
+  const total = personas.reduce((s, p) => s + multaDe(p), 0);
+  const conMulta = personas.filter((p) => multaDe(p) > 0).length;
+  const pesos = (n: number) => `$${n.toLocaleString("es-CO")}`;
 
   function guardar() {
     if (guardando) return;
     const anterior = base;
     setError("");
-    // El cambio se da por guardado de inmediato; si el servidor falla, se revierte y se avisa.
+    setGuardadoAhora(false);
     setBase(estados);
     iniciar(async () => {
       const r = await guardarAsistencia(reunionId, estados);
       if (r.error) {
         setBase(anterior);
         setError(r.error);
+      } else {
+        setGuardadoAhora(true);
       }
     });
   }
 
   return (
-    <div className="space-y-2">
-      {personas.map((p) => (
-        <div key={p.id} className="space-y-2 rounded-2xl border border-card-border bg-card p-3">
-          <div className="flex items-baseline justify-between">
-            <p className="text-sm font-medium">{p.nombre}</p>
-            {p.ciudad && <p className="text-xs text-muted">{p.ciudad}</p>}
-          </div>
-          <div className="grid grid-cols-4 gap-1">
-            {ESTADOS.map(([valor, texto]) => {
-              const activo = estados[p.id] === valor;
-              const alerta = valor === "tarde" || valor === "ausente";
-              return (
+    <div className="space-y-3">
+      {personas.map((p) => {
+        const multa = multaDe(p);
+        return (
+          <div key={p.id} className="space-y-3 rounded-[28px] bg-card p-4">
+            <div className="flex items-center gap-3">
+              <Avatar nombre={p.nombre} size={36} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold leading-tight">{p.nombre}</p>
+                {p.ciudad && <p className="text-xs text-muted">{p.ciudad}</p>}
+              </div>
+              {multa > 0 && (
+                <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-500">
+                  Multa {pesos(multa)}
+                </span>
+              )}
+              {estados[p.id] === "ausente" && multa === 0 && (
+                <span className="rounded-full bg-card-border px-2.5 py-1 text-xs text-muted">Sin multa</span>
+              )}
+            </div>
+            <div className="grid grid-cols-4 gap-1 rounded-full bg-background p-1">
+              {ESTADOS.map(([valor, texto, activa]) => (
                 <button
                   key={valor}
                   type="button"
                   disabled={guardando}
                   onClick={() => setEstados((e) => ({ ...e, [p.id]: valor }))}
-                  className={`rounded-lg py-1.5 text-xs font-medium disabled:opacity-60 ${
-                    activo
-                      ? alerta
-                        ? "bg-danger text-white"
-                        : "bg-accent text-accent-fg"
-                      : "border border-card-border text-muted"
+                  className={`rounded-full py-2 text-xs font-semibold transition-colors disabled:opacity-60 ${
+                    estados[p.id] === valor ? activa : "text-muted"
                   }`}
                 >
                   {texto}
                 </button>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
-      <p className="text-xs text-muted">
-        {tardes} tarde · {ausentes} ausente{ausentes === 1 ? "" : "s"}
-      </p>
+      <div className="rounded-[28px] bg-accent-soft p-4 text-sm">
+        <p className="font-semibold text-accent">
+          {conMulta === 0 ? "Sin multas en esta reunión" : `${conMulta} multa${conMulta > 1 ? "s" : ""} · ${pesos(total)} por cobrar`}
+        </p>
+        <p className="text-xs text-muted">
+          Tarde {pesos(multaTarde)} · Ausente {pesos(multaAusencia)} (solo si vive en Pasto). Se cobran en la sección Multas.
+        </p>
+      </div>
+
       <button
         type="button"
         onClick={guardar}
         disabled={guardando || sinCambios}
-        className="w-full rounded-xl bg-accent px-4 py-3 text-sm font-medium text-accent-fg disabled:opacity-60"
+        className="w-full rounded-full bg-foreground py-4 font-semibold text-background disabled:opacity-60"
       >
         {guardando ? "Guardando…" : sinCambios ? "Asistencia guardada ✓" : "Guardar asistencia"}
       </button>
+      {guardadoAhora && conMulta > 0 && (
+        <Link href="/admin/multas" className="flex items-center justify-center gap-2 text-sm text-accent underline">
+          <CheckCircle2 size={16} /> Multas generadas: ir a cobrarlas
+        </Link>
+      )}
       {error && <p className="text-sm text-danger">{error}</p>}
     </div>
   );

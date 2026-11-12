@@ -6,6 +6,7 @@ import { cerrarSesion } from "@/lib/acciones";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { fechaCorta } from "@/lib/format";
 import FormularioCuenta from "./FormularioCuenta";
+import { CircleHelp } from "lucide-react";
 
 const etiquetaRol = {
   asociado: "Asociado",
@@ -44,6 +45,13 @@ async function PerfilContenido() {
         <span>Tema claro / oscuro</span>
         <ThemeToggle />
       </div>
+      <Link
+        href="/?tutorial=1"
+        className="flex w-full items-center justify-center gap-2 rounded-full bg-card py-3.5 text-sm font-semibold"
+      >
+        <CircleHelp size={18} />
+        Ver tutorial de la plataforma
+      </Link>
       {esAdmin(perfil) && (
         <Link
           href="/elegir-panel"

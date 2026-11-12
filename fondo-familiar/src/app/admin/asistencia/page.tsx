@@ -2,10 +2,12 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
-import { guardarJuegos } from "@/lib/acciones";
+import { guardarJuegos, marcarMultaPagada } from "@/lib/acciones";
 import { fechaCorta, hoyColombia, mesLargo, pesos } from "@/lib/format";
 import BotonEnvio from "@/components/BotonEnvio";
 import FormularioAsistencia from "./FormularioAsistencia";
+import SelectorMes from "@/components/SelectorMes";
+import Avatar from "@/components/Avatar";
 
 export default function Asistencia({ searchParams }: PageProps<"/admin/asistencia">) {
   return (
@@ -15,8 +17,7 @@ export default function Asistencia({ searchParams }: PageProps<"/admin/asistenci
   );
 }
 
-const campo =
-  "w-full rounded-xl border border-card-border bg-background px-3 py-2 text-sm outline-none focus:border-accent";
+const campo = "w-full rounded-2xl bg-background px-4 py-3 text-sm outline-none ring-1 ring-card-border focus:ring-accent";
 
 async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/asistencia">["searchParams"] }) {
   await requerirAdmin();
@@ -40,34 +41,33 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/asi
   }
 
   const periodo = `${elegida.fecha.slice(0, 7)}-01`;
-  const [{ data: perfiles }, { data: asistencias }, { data: juegos }, { data: cuotas }] = await Promise.all([
+  const [{ data: perfiles }, { data: asistencias }, { data: juegos }, { data: cuotas }, { data: multas }, { data: params }] = await Promise.all([
     supabase.from("perfiles").select("id, nombre, ciudad").eq("activo", true).order("nombre"),
     supabase.from("asistencias").select("asociado_id, estado").eq("reunion_id", elegida.id),
     supabase.from("juegos").select("recaudo, premios, utilidad").eq("reunion_id", elegida.id).maybeSingle(),
     supabase.from("cuotas").select("juegos").eq("periodo", periodo).eq("estado", "pagada"),
+    supabase
+      .from("multas")
+      .select("id, motivo, monto, pagada, perfiles!multas_asociado_id_fkey(nombre)")
+      .eq("reunion_id", elegida.id)
+      .order("pagada"),
+    supabase.from("parametros").select("clave, valor").in("clave", ["multa_tarde", "multa_ausencia"]),
   ]);
+  const p = Object.fromEntries((params ?? []).map((x) => [x.clave, Number(x.valor)]));
   const sugerido = (cuotas ?? []).reduce((s, c) => s + Number(c.juegos), 0);
 
   return (
     <main className="mx-auto w-full max-w-md flex-1 space-y-4 px-4 py-8">
-      <Link href="/admin" className="text-sm text-accent underline">
-        ← Administración
+      <Link href="/admin/mas" className="text-sm text-accent underline">
+        ← Resumen
       </Link>
       <h1 className="text-3xl font-bold tracking-tight">Asistencia y juegos</h1>
 
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {lista.map((r) => (
-          <Link
-            key={r.id}
-            href={`/admin/asistencia?reunion=${r.fecha.slice(0, 7)}`}
-            className={`shrink-0 rounded-full px-3 py-1 text-xs ${
-              r.id === elegida.id ? "bg-accent text-accent-fg" : "border border-card-border text-muted"
-            }`}
-          >
-            {mesLargo(r.fecha).slice(0, 3)} {r.fecha.slice(2, 4)}
-          </Link>
-        ))}
-      </div>
+      <SelectorMes
+        base="/admin/asistencia?reunion="
+        actual={elegida.fecha.slice(0, 7)}
+        opciones={lista.map((r) => ({ valor: r.fecha.slice(0, 7), texto: mesLargo(r.fecha) }))}
+      />
       <p className="text-sm text-muted">Reunión del {fechaCorta(elegida.fecha)}. Retraso y ausencia generan multa automática.</p>
 
       <FormularioAsistencia
@@ -75,9 +75,41 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/asi
         reunionId={elegida.id}
         personas={perfiles ?? []}
         guardados={Object.fromEntries((asistencias ?? []).map((a) => [a.asociado_id, a.estado]))}
+        multaTarde={p.multa_tarde ?? 5000}
+        multaAusencia={p.multa_ausencia ?? 8000}
       />
 
-      <form action={guardarJuegos} className="space-y-3 rounded-2xl border border-card-border bg-card p-4">
+      {(multas ?? []).length > 0 && (
+        <section className="space-y-2">
+          <h2 className="px-1 text-lg font-semibold">Multas de esta reunión</h2>
+          <div className="divide-y divide-card-border/60 rounded-[28px] bg-card px-2">
+            {(multas ?? []).map((m) => {
+              const nombre = (m.perfiles as unknown as { nombre: string } | null)?.nombre ?? "";
+              return (
+                <div key={m.id} className="flex items-center gap-3 px-2 py-3">
+                  <Avatar nombre={nombre} size={36} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{nombre}</p>
+                    <p className="text-xs text-muted">{m.motivo} · {pesos(Number(m.monto))}</p>
+                  </div>
+                  <form action={marcarMultaPagada}>
+                    <input type="hidden" name="id" value={m.id} />
+                    <input type="hidden" name="pagada" value={m.pagada ? "no" : "si"} />
+                    <BotonEnvio
+                      enviando="…"
+                      className={`rounded-full px-4 py-2 text-xs font-semibold ${m.pagada ? "bg-ok/15 text-ok" : "bg-foreground text-background"}`}
+                    >
+                      {m.pagada ? "Cobrada ✓" : "Cobrar"}
+                    </BotonEnvio>
+                  </form>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      <form action={guardarJuegos} className="space-y-3 rounded-[28px] bg-card p-5">
         <input type="hidden" name="reunion_id" value={elegida.id} />
         <h2 className="font-semibold">Juegos</h2>
         <p className="text-xs text-muted">
@@ -89,7 +121,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/asi
             Guardado: premios {pesos(Number(juegos.premios))} · utilidad {pesos(Number(juegos.utilidad))}
           </p>
         )}
-        <BotonEnvio className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-fg">Guardar juegos</BotonEnvio>
+        <BotonEnvio className="w-full rounded-full bg-foreground py-3.5 font-semibold text-background">Guardar juegos</BotonEnvio>
       </form>
     </main>
   );

@@ -50,7 +50,7 @@ export default function FilaAsociado({ asociado: a }: { asociado: Asociado }) {
       {a.primer_ingreso_completo && (
         <form action={reiniciarPrimerIngreso}>
           <input type="hidden" name="id" value={a.id} />
-          <button className="text-xs text-muted underline">Permitir nuevo primer ingreso</button>
+          <button className="rounded-full bg-background px-3.5 py-2 text-xs font-semibold">Permitir nuevo primer ingreso</button>
         </form>
       )}
     </div>

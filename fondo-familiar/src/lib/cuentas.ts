@@ -12,7 +12,7 @@ export async function estadoDeCuenta(asociadoId: string) {
     supabase.from("cuotas").select("periodo, ahorro, cadena, juegos, estado").eq("asociado_id", asociadoId).order("periodo"),
     supabase.from("cadena_turnos").select("asociado_id, turno, fecha_reunion").order("turno"),
     supabase.from("aportes_unicos").select("tipo, monto").eq("asociado_id", asociadoId),
-    supabase.from("multas").select("monto").eq("asociado_id", asociadoId).eq("pagada", false),
+    supabase.from("multas").select("monto, motivo, reuniones(fecha)").eq("asociado_id", asociadoId).eq("pagada", false),
   ]);
 
   const listaCuotas = cuotas.data ?? [];
@@ -44,6 +44,11 @@ export async function estadoDeCuenta(asociadoId: string) {
     miTurno: listaTurnos.find((t) => t.asociado_id === asociadoId) ?? null,
     proximaReunion: listaTurnos.map((t) => t.fecha_reunion).find((f) => f >= hoy) ?? null,
     multasPendientes: (multas.data ?? []).reduce((s, m) => s + Number(m.monto), 0),
+    multas: (multas.data ?? []).map((m) => ({
+      motivo: m.motivo,
+      monto: Number(m.monto),
+      fecha: (m.reuniones as unknown as { fecha: string } | null)?.fecha ?? null,
+    })),
   };
 }
 
@@ -64,7 +69,8 @@ export async function resumenPrestamo(asociadoId: string) {
   const p = Object.fromEntries((params ?? []).map((x) => [x.clave, Number(x.valor)]));
   const tope = p.tope_prestamo ?? 1_000_000;
   const puedePedir = Math.min(tope, Math.max(0, Number(caja ?? 0)));
-  if (!prestamo) return { prestamo: null, tope, puedePedir };
+  const cajaLibre = Number(caja ?? 0);
+  if (!prestamo) return { prestamo: null, tope, puedePedir, caja: cajaLibre };
 
   const { data: movs } = await supabase
     .from("movimientos_prestamo")
@@ -77,5 +83,5 @@ export async function resumenPrestamo(asociadoId: string) {
     hoyColombia(),
     { interes: p.interes_prestamo_pct ?? 4, mora: p.interes_mora_pct ?? 4 },
   );
-  return { prestamo: { ...prestamo, cuentas }, tope, puedePedir };
+  return { prestamo: { ...prestamo, cuentas }, tope, puedePedir, caja: cajaLibre };
 }

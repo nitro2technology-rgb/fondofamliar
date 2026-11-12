@@ -1,165 +1,314 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { Check, ThumbsDown, ThumbsUp, X } from "lucide-react";
+import Avatar from "@/components/Avatar";
+import BotonEnvio from "@/components/BotonEnvio";
 import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { desembolsarPrestamo, registrarMovimientoPrestamo, votarPrestamo } from "@/lib/acciones";
 import { cuentasPrestamo } from "@/lib/prestamos";
 import { fechaCorta, hoyColombia, pesos } from "@/lib/format";
 
-export default function PrestamosAdmin() {
+export default function PrestamosAdmin({ searchParams }: PageProps<"/admin/prestamos">) {
   return (
-    <Suspense fallback={<main className="flex-1" />}>
-      <Contenido />
+    <Suspense fallback={<main className="flex-1 px-4 pt-6 text-muted">Cargando…</main>}>
+      <Contenido searchParams={searchParams} />
     </Suspense>
   );
 }
 
-const campo =
-  "w-full rounded-xl border border-card-border bg-background px-3 py-2 text-sm outline-none focus:border-accent";
+type Vista = "cola" | "vigentes" | "historial";
 
-async function Contenido() {
+async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/prestamos">["searchParams"] }) {
   const yo = await requerirAdmin();
   const supabase = await crearClienteServidor();
+  const hoy = hoyColombia();
 
-  const [{ data: prestamos }, { data: votos }, { data: movs }, { data: turnos }, { data: params }, { data: caja }] =
+  const [{ data: activos }, { data: historial }, { data: votos }, { data: movs }, { data: turnos }, { data: params }, { data: caja }, { data: admins }] =
     await Promise.all([
       supabase
         .from("prestamos")
-        .select("id, monto, estado, radicado_en, desembolsado_en, perfiles!prestamos_asociado_id_fkey(nombre), externos(nombre)")
+        .select("id, asociado_id, monto, estado, radicado_en, desembolsado_en, perfiles!prestamos_asociado_id_fkey(nombre), externos(nombre)")
         .in("estado", ["radicado", "aprobado", "vigente"])
         .order("radicado_en"),
+      supabase
+        .from("prestamos")
+        .select("id, asociado_id, monto, estado, radicado_en, perfiles!prestamos_asociado_id_fkey(nombre)")
+        .in("estado", ["pagado", "rechazado"])
+        .order("radicado_en", { ascending: false })
+        .limit(20),
       supabase.from("votos_prestamo").select("prestamo_id, admin_id, voto"),
       supabase.from("movimientos_prestamo").select("prestamo_id, tipo, monto, fecha"),
       supabase.from("cadena_turnos").select("fecha_reunion"),
       supabase.from("parametros").select("clave, valor").in("clave", ["interes_prestamo_pct", "interes_mora_pct"]),
       supabase.rpc("caja_disponible"),
+      supabase.from("perfiles").select("id, nombre").in("rol", ["tesorero", "contador", "fiscal"]).eq("activo", true).order("nombre"),
     ]);
 
   const p = Object.fromEntries((params ?? []).map((x) => [x.clave, Number(x.valor)]));
   const reuniones = (turnos ?? []).map((t) => t.fecha_reunion);
-  const hoy = hoyColombia();
-  const lista = (prestamos ?? []).map((x) => ({
-    ...x,
-    nombre: (x.perfiles as unknown as { nombre: string } | null)?.nombre ?? "",
-    externo: (x.externos as unknown as { nombre: string } | null)?.nombre ?? null,
-  }));
+  const nombreDe = (x: { perfiles: unknown }) => (x.perfiles as { nombre: string } | null)?.nombre ?? "";
+  const cuentasDe = (x: { id: string; desembolsado_en: string | null }) =>
+    cuentasPrestamo(x.desembolsado_en, (movs ?? []).filter((o) => o.prestamo_id === x.id), reuniones, hoy, {
+      interes: p.interes_prestamo_pct ?? 4,
+      mora: p.interes_mora_pct ?? 4,
+    });
 
-  const porCobrar = lista
-    .filter((x) => x.estado === "vigente")
-    .reduce(
-      (a, x) => {
-        const c = cuentasPrestamo(x.desembolsado_en, (movs ?? []).filter((o) => o.prestamo_id === x.id), reuniones, hoy, {
-          interes: p.interes_prestamo_pct ?? 4,
-          mora: p.interes_mora_pct ?? 4,
-        });
-        return { interes: a.interes + c.interesPendiente, mora: a.mora + c.moraPendiente, total: a.total + c.interesPendiente + c.moraPendiente };
-      },
-      { interes: 0, mora: 0, total: 0 },
-    );
-  const proximaReunion = [...reuniones].sort().find((f) => f >= hoy) ?? null;
+  const cola = (activos ?? []).filter((x) => x.estado !== "vigente");
+  const vigentes = (activos ?? []).filter((x) => x.estado === "vigente");
+  const pedida = String((await searchParams).vista ?? "");
+  const vista: Vista = pedida === "vigentes" || pedida === "historial" || pedida === "cola" ? pedida : cola.length ? "cola" : "vigentes";
+
+  const cajaLibre = Number(caja ?? 0); // ya descuenta lo aprobado sin desembolsar
+  const porCobrar = vigentes.reduce((s, x) => {
+    const c = cuentasDe(x);
+    return s + c.interesPendiente + c.moraPendiente;
+  }, 0);
+  const enCartera = vigentes.reduce((s, x) => s + cuentasDe(x).saldoCapital, 0);
+
+  const href = (v: Vista) => `/admin/prestamos?vista=${v}`;
+  // Monto acumulado de las solicitudes en votación, en orden de llegada, para saber hasta dónde alcanza la caja.
+  const acumulados = new Map<string, number>();
+  cola.filter((x) => x.estado === "radicado").reduce((suma, x) => {
+    acumulados.set(x.id, suma + Number(x.monto));
+    return suma + Number(x.monto);
+  }, 0);
 
   return (
-    <main className="mx-auto w-full max-w-md flex-1 space-y-4 px-4 py-8">
+    <main className="mx-auto w-full max-w-md flex-1 space-y-5 px-4 py-6">
       <Link href="/admin" className="text-sm text-accent underline">
-        ← Administración
+        ← Resumen
       </Link>
       <h1 className="text-3xl font-bold tracking-tight">Préstamos</h1>
-      <p className="text-sm text-muted">Caja disponible para prestar: {pesos(Number(caja ?? 0))}</p>
 
-      {porCobrar.total > 0 && (
-        <div className="rounded-2xl border border-accent bg-card p-4">
-          <p className="text-sm text-muted">Por cobrar en intereses (a hoy)</p>
-          <p className="text-2xl font-bold">{pesos(porCobrar.total)}</p>
-          <p className="text-xs text-muted">
-            Interés {pesos(porCobrar.interes)} · Mora estimada {pesos(porCobrar.mora)}
-            {proximaReunion && ` · próxima reunión ${fechaCorta(proximaReunion)}`}
-          </p>
-        </div>
-      )}
-      {lista.length === 0 && <p className="text-muted">No hay solicitudes ni préstamos en curso.</p>}
+      <section className="grid grid-cols-3 gap-2 text-center">
+        <Dato t="Disponible" v={pesos(Math.max(0, cajaLibre))} destacado />
+        <Dato t="En préstamo" v={pesos(enCartera)} />
+        <Dato t="Por cobrar" v={pesos(porCobrar)} />
+      </section>
 
-      {lista.map((x, i) => {
-        const v = (votos ?? []).filter((o) => o.prestamo_id === x.id);
-        const miVoto = v.find((o) => o.admin_id === yo.id);
-        const aFavor = v.filter((o) => o.voto === "aprobar").length;
-        const enContra = v.filter((o) => o.voto === "rechazar").length;
-        const m = (movs ?? []).filter((o) => o.prestamo_id === x.id);
-        const c = cuentasPrestamo(x.desembolsado_en, m, reuniones, hoy, {
-          interes: p.interes_prestamo_pct ?? 4,
-          mora: p.interes_mora_pct ?? 4,
-        });
+      <div className="flex gap-1 rounded-full bg-card p-1">
+        {(
+          [
+            ["cola", `Cola (${cola.length})`],
+            ["vigentes", `Vigentes (${vigentes.length})`],
+            ["historial", "Historial"],
+          ] as const
+        ).map(([v, t]) => (
+          <Link
+            key={v}
+            href={href(v)}
+            className={`flex-1 rounded-full px-2 py-2 text-center text-sm font-semibold ${v === vista ? "bg-foreground text-background" : "text-muted"}`}
+          >
+            {t}
+          </Link>
+        ))}
+      </div>
 
-        return (
-          <div key={x.id} className="space-y-3 rounded-2xl border border-card-border bg-card p-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="font-semibold">{x.nombre}</p>
-                <p className="text-xs text-muted">
-                  {x.estado === "vigente" ? "Vigente" : `#${i + 1} en cola`} · radicado {fechaCorta(x.radicado_en.slice(0, 10))}
-                  {x.externo && ` · externo: ${x.externo}`}
-                </p>
-              </div>
-              <p className="font-semibold">{pesos(Number(x.monto))}</p>
-            </div>
+      {/* ───── Cola de solicitudes (la cadena de préstamos) ───── */}
+      {vista === "cola" && (
+        <section className="space-y-1">
+          {cola.length === 0 && <p className="rounded-[28px] bg-card p-5 text-sm text-muted">No hay solicitudes pendientes.</p>}
+          <ol className="relative space-y-4">
+            {cola.length > 1 && <span className="absolute bottom-6 left-[21px] top-6 w-0.5 bg-card-border" aria-hidden />}
+            {cola.map((x, i) => {
+              const v = (votos ?? []).filter((o) => o.prestamo_id === x.id);
+              const miVoto = v.find((o) => o.admin_id === yo.id);
+              const aFavor = v.filter((o) => o.voto === "aprobar").length;
+              const enContra = v.filter((o) => o.voto === "rechazar").length;
+              const aprobado = x.estado === "aprobado";
+              const acumulado = acumulados.get(x.id) ?? 0;
+              const hayCaja = aprobado || acumulado <= cajaLibre;
+              const nombre = nombreDe(x);
+              const externo = (x.externos as unknown as { nombre: string } | null)?.nombre;
 
-            {x.estado === "radicado" && (
-              <>
-                <p className="text-xs text-muted">
-                  Votos: {aFavor} a favor · {enContra} en contra (se decide con 2)
-                </p>
-                {miVoto ? (
-                  <p className="text-sm text-muted">Tu voto: {miVoto.voto === "aprobar" ? "aprobar" : "rechazar"}</p>
-                ) : (
-                  <form action={votarPrestamo} className="flex gap-2">
-                    <input type="hidden" name="id" value={x.id} />
-                    <button name="voto" value="aprobar" className="flex-1 rounded-xl bg-accent px-3 py-2 text-sm font-medium text-accent-fg">
-                      Aprobar
-                    </button>
-                    <button name="voto" value="rechazar" className="flex-1 rounded-xl border border-card-border px-3 py-2 text-sm">
-                      Rechazar
-                    </button>
-                  </form>
-                )}
-              </>
-            )}
+              return (
+                <li key={x.id} className="relative flex gap-3">
+                  <span
+                    className={`relative z-10 flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-extrabold ${
+                      i === 0 ? "bg-accent text-accent-fg shadow-lg shadow-accent/40" : "bg-card text-muted ring-1 ring-card-border"
+                    }`}
+                  >
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0 flex-1 space-y-3 rounded-[28px] bg-card p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <Link href={`/admin/socio/${x.asociado_id}`} className="flex min-w-0 items-center gap-2.5">
+                        <Avatar nombre={nombre} size={36} />
+                        <span className="min-w-0">
+                          <span className="block truncate font-semibold">{nombre}</span>
+                          <span className="block text-xs text-muted">
+                            {fechaCorta(x.radicado_en.slice(0, 10))}
+                            {externo && ` · para ${externo}`}
+                          </span>
+                        </span>
+                      </Link>
+                      <p className="text-lg font-extrabold">{pesos(Number(x.monto))}</p>
+                    </div>
 
-            {x.estado === "aprobado" && (
-              <form action={desembolsarPrestamo}>
-                <input type="hidden" name="id" value={x.id} />
-                <button className="w-full rounded-xl bg-accent px-3 py-2 text-sm font-medium text-accent-fg">
-                  Registrar desembolso
-                </button>
-              </form>
-            )}
+                    {x.estado === "radicado" && (
+                      <>
+                        <div className="flex items-center gap-2">
+                          {admins?.map((a) => {
+                            const o = v.find((w) => w.admin_id === a.id);
+                            return (
+                              <span
+                                key={a.id}
+                                title={`${a.nombre}: ${o ? o.voto : "sin votar"}`}
+                                className={`flex size-7 items-center justify-center rounded-full text-[11px] font-bold ${
+                                  o?.voto === "aprobar"
+                                    ? "bg-ok text-white"
+                                    : o?.voto === "rechazar"
+                                      ? "bg-danger text-white"
+                                      : "bg-background text-muted ring-1 ring-card-border"
+                                }`}
+                              >
+                                {o?.voto === "aprobar" ? <Check size={14} /> : o?.voto === "rechazar" ? <X size={14} /> : a.nombre.charAt(0)}
+                              </span>
+                            );
+                          })}
+                          <span className="text-xs text-muted">
+                            {aFavor} a favor · {enContra} en contra · se decide con 2
+                          </span>
+                        </div>
+                        {!hayCaja && (
+                          <p className="rounded-xl bg-danger/10 px-3 py-2 text-xs text-danger">
+                            Hoy no alcanza la caja para esta posición (acumulado {pesos(acumulado)}).
+                          </p>
+                        )}
+                        {miVoto ? (
+                          <p className="text-sm text-muted">Tu voto: {miVoto.voto === "aprobar" ? "aprobar" : "rechazar"}</p>
+                        ) : (
+                          <form action={votarPrestamo} className="grid grid-cols-2 gap-2">
+                            <input type="hidden" name="id" value={x.id} />
+                            <button
+                              name="voto"
+                              value="aprobar"
+                              className="flex items-center justify-center gap-2 rounded-full bg-foreground py-3 text-sm font-semibold text-background"
+                            >
+                              <ThumbsUp size={16} /> Aprobar
+                            </button>
+                            <button
+                              name="voto"
+                              value="rechazar"
+                              className="flex items-center justify-center gap-2 rounded-full bg-background py-3 text-sm font-semibold text-danger"
+                            >
+                              <ThumbsDown size={16} /> Rechazar
+                            </button>
+                          </form>
+                        )}
+                      </>
+                    )}
 
-            {x.estado === "vigente" && (
-              <>
-                <div className="grid grid-cols-2 gap-2 text-xs text-muted">
-                  <p>Saldo capital: {pesos(c.saldoCapital)}</p>
-                  <p>Interés mensual: {pesos(c.interesMensual)}</p>
-                  <p>Interés pendiente: {pesos(c.interesPendiente)}</p>
-                  <p>Mora estimada: {pesos(c.moraPendiente)}</p>
-                </div>
-                <form action={registrarMovimientoPrestamo} className="space-y-2">
-                  <input type="hidden" name="id" value={x.id} />
-                  <input name="monto" inputMode="numeric" placeholder="Monto recibido" className={campo} />
-                  <div className="grid grid-cols-3 gap-2">
-                    <button name="tipo" value="interes" className="rounded-xl bg-accent px-2 py-2 text-xs font-medium text-accent-fg">
-                      Interés
-                    </button>
-                    <button name="tipo" value="interes_mora" className="rounded-xl border border-card-border px-2 py-2 text-xs">
-                      Mora
-                    </button>
-                    <button name="tipo" value="abono_capital" className="rounded-xl border border-card-border px-2 py-2 text-xs">
-                      Capital
-                    </button>
+                    {aprobado && (
+                      <form action={desembolsarPrestamo} className="space-y-2">
+                        <input type="hidden" name="id" value={x.id} />
+                        <p className="text-xs text-ok">Aprobado por los directivos. Falta entregar el dinero.</p>
+                        <BotonEnvio enviando="Registrando…" className="w-full rounded-full bg-accent py-3 text-sm font-semibold text-accent-fg">
+                          Registrar desembolso
+                        </BotonEnvio>
+                      </form>
+                    )}
                   </div>
-                </form>
-              </>
-            )}
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      )}
+
+      {/* ───── Vigentes ───── */}
+      {vista === "vigentes" && (
+        <section className="space-y-3">
+          {vigentes.length === 0 && <p className="rounded-[28px] bg-card p-5 text-sm text-muted">No hay préstamos vigentes.</p>}
+          {vigentes.map((x) => {
+            const c = cuentasDe(x);
+            const nombre = nombreDe(x);
+            const debe = c.interesPendiente + c.moraPendiente;
+            return (
+              <div key={x.id} className="space-y-3 rounded-[28px] bg-card p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <Link href={`/admin/socio/${x.asociado_id}`} className="flex min-w-0 items-center gap-2.5">
+                    <Avatar nombre={nombre} size={40} />
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold">{nombre}</span>
+                      <span className="block text-xs text-muted">Desde {x.desembolsado_en ? fechaCorta(x.desembolsado_en) : "—"}</span>
+                    </span>
+                  </Link>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${
+                      c.moraPendiente > 0 ? "bg-danger/15 text-danger" : debe > 0 ? "bg-card-border text-muted" : "bg-accent-soft text-accent"
+                    }`}
+                  >
+                    {c.moraPendiente > 0 ? "En mora" : debe > 0 ? `Debe ${pesos(debe)}` : "Al día"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <Dato t="Saldo capital" v={pesos(c.saldoCapital)} fondo />
+                  <Dato t="Interés mes" v={pesos(c.interesMensual)} fondo />
+                  <Dato t="Interés pend." v={pesos(c.interesPendiente)} fondo />
+                </div>
+                <details className="group">
+                  <summary className="cursor-pointer list-none rounded-full bg-background py-2.5 text-center text-xs font-semibold group-open:hidden">
+                    Registrar pago recibido
+                  </summary>
+                  <form action={registrarMovimientoPrestamo} className="space-y-2 rounded-2xl bg-background p-3">
+                    <input type="hidden" name="id" value={x.id} />
+                    <input
+                      name="monto"
+                      inputMode="numeric"
+                      placeholder="Monto recibido"
+                      className="w-full rounded-xl bg-card px-3 py-2.5 text-sm outline-none ring-1 ring-card-border focus:ring-accent"
+                    />
+                    <div className="grid grid-cols-3 gap-2">
+                      <button name="tipo" value="interes" className="rounded-full bg-foreground py-2.5 text-xs font-semibold text-background">
+                        Interés
+                      </button>
+                      <button name="tipo" value="interes_mora" className="rounded-full bg-card py-2.5 text-xs font-semibold">
+                        Mora
+                      </button>
+                      <button name="tipo" value="abono_capital" className="rounded-full bg-card py-2.5 text-xs font-semibold">
+                        Capital
+                      </button>
+                    </div>
+                  </form>
+                </details>
+              </div>
+            );
+          })}
+        </section>
+      )}
+
+      {/* ───── Historial ───── */}
+      {vista === "historial" && (
+        <section className="space-y-2">
+          {(historial ?? []).length === 0 && <p className="rounded-[28px] bg-card p-5 text-sm text-muted">Aún no hay préstamos cerrados.</p>}
+          <div className="divide-y divide-card-border/60 rounded-[28px] bg-card px-2">
+            {(historial ?? []).map((x) => (
+              <Link key={x.id} href={`/admin/socio/${x.asociado_id}`} className="flex items-center gap-3 px-2 py-3.5">
+                <Avatar nombre={nombreDe(x)} size={40} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{nombreDe(x)}</p>
+                  <p className="text-xs text-muted">{fechaCorta(x.radicado_en.slice(0, 10))}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold">{pesos(Number(x.monto))}</p>
+                  <p className={`text-xs ${x.estado === "pagado" ? "text-ok" : "text-danger"}`}>{x.estado === "pagado" ? "Pagado" : "Rechazado"}</p>
+                </div>
+              </Link>
+            ))}
           </div>
-        );
-      })}
+        </section>
+      )}
     </main>
+  );
+}
+
+function Dato({ t, v, destacado, fondo }: { t: string; v: string; destacado?: boolean; fondo?: boolean }) {
+  return (
+    <div className={`rounded-2xl px-2 py-3 ${destacado ? "bg-accent text-accent-fg" : fondo ? "bg-background" : "bg-card"}`}>
+      <p className="text-base font-bold">{v}</p>
+      <p className={`mt-0.5 text-[11px] leading-tight ${destacado ? "opacity-80" : "text-muted"}`}>{t}</p>
+    </div>
   );
 }

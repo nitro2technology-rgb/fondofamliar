@@ -3,6 +3,7 @@
 import { startTransition, useActionState, useState, type FormEvent } from "react";
 import { reportarPagoPrestamo, type EstadoForm } from "@/lib/acciones";
 import { datosConImagenComprimida, errorDeArchivo } from "@/lib/comprimir";
+import SelectorArchivo from "@/components/SelectorArchivo";
 
 const campo =
   "w-full rounded-xl border border-card-border bg-background px-3 py-2.5 text-sm outline-none focus:border-accent";
@@ -110,7 +111,7 @@ export default function FormularioPagoPrestamo({ c }: { c: Cifras }) {
 
         <label className="block space-y-1">
           <span className="text-sm">Comprobante</span>
-          <input type="file" name="archivo" accept="image/*" className={campo} />
+          <SelectorArchivo titulo="Subir comprobante" ayuda="Pantallazo del pago" />
         </label>
 
         <button disabled={ocupado || total <= 0} className="w-full rounded-full bg-foreground py-4 font-semibold text-background disabled:opacity-50">

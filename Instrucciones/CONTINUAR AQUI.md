@@ -320,3 +320,38 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - Si el shell falla con heredocs largos, escribir los archivos con la herramienta de escritura. Consultas con relaciones de PostgREST: usar el nombre de la FK (`perfiles!cuotas_asociado_id_fkey`, `perfiles!prestamos_asociado_id_fkey`) porque hay varias FK a `perfiles`.
 - `votos_prestamo` y `movimientos_prestamo` son de solo inserción (trigger `bloquear_cambios`): no se borran; se corrigen con estados o contramovimientos.
 - Commits terminan con `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`.
+
+## Sesión 9 (2026-11-12) — Panel admin estilo usuario y cierre de ciclo (sin subir aún; compila y pasa lint)
+**Hecho**
+- Panel admin rediseñado igual al del asociado: barra inferior (Resumen · Pagos · Préstamos · Más), degradado, cifra grande "Disponible para prestar", botones circulares, "Siguiente en recibir" (cadena), tarjeta de préstamos activos + lista por deudor. Menú restante en `/admin/mas`. Archivos: `components/AdminNav.tsx`, `admin/layout.tsx`, `admin/page.tsx`, `admin/mas`, `lib/fondo.ts`.
+- Cierre de ciclo: `/admin/cierre` (deudas por cancelar, utilidades = intereses + mora + multas pagadas + utilidad de juegos, liquidación por asociado = ahorro + utilidades ÷ 19) y PDF `/admin/liquidacion-pdf`. Plazo de devolución = un minuto antes de la hora de la última reunión (7:30 p. m. -> 7:29; 7:00 -> 6:59); pasado el plazo, `reportarPagoPrestamo` rechaza nuevos pagos de préstamo (`lib/cierre.ts`).
+- Migración `0013_limpiar_entregas_cadena.sql` (borra la tabla en desuso). **Falta ejecutarla.**
+
+**Pendiente**: ejecutar 0013, commit/push, avisar a los 19, captura NU de octubre (en `/admin/capturas`), confirmar mora, respaldo periódico, PWA instalable, estilo en pantallas internas de admin.
+
+## Sesión 9 (cont.) — Pagos, detalle de socio, préstamos, captura NU, asistencia (sin subir; compila y pasa lint)
+- Componente `SelectorArchivo` (zona de carga con vista previa, cambiar/quitar) usado en todos los formularios de imagen; `Avatar` (inicial con color por nombre); `SelectorMes` (lista desplegable).
+- Pagos > Préstamos: el admin puede subir el comprobante por el deudor (`subirPagoPrestamoAdmin`, queda "por revisar"). Mismo botón en el detalle del socio.
+- Detalle de socio `/admin/socio/[id]`: cuotas mes a mes, aportes, multas, asistencia y cada préstamo (solicitud, desembolso, intereses/abonos/movimientos, saldo y mora). Se llega tocando el nombre en Pagos, Préstamos y Resumen.
+- `/admin/prestamos`: pestañas Cola (cadena de solicitudes numerada, votos de los 3 directivos, aprobar/rechazar, aviso si no alcanza la caja, desembolso) / Vigentes / Historial.
+- `/admin/capturas`: solo subir (mes en lista desplegable), historial mes a mes con miniatura, editar y eliminar; meses sin captura aparecen para subirlas. Botón "Captura NU" en el Resumen y aviso si falta la del mes anterior.
+- Asistencia: muestra la multa de cada tarde/ausente, resumen del total por cobrar y sección "Multas de esta reunión" con botón Cobrar.
+
+## Sesión 9 (cont. 2) — Cuotas informativas, bloqueo por multas, captura ligada a la reunión (sin subir)
+- `/admin/cuotas`: lista desplegable de mes, resumen "x/19 han pagado" con recaudado/por recaudar, listas Faltan/Ya pagaron (cada nombre abre el detalle) y botón "Cobrar a N que deben" -> `/admin/pagos` filtrado.
+- Multas: el asociado ve en Inicio una tarjeta roja con sus multas y en `/prestamos` la solicitud queda bloqueada mientras deba multas o tenga la cuota en mora (el servidor ya lo exigía). Se desbloquea cuando el admin marca la multa como cobrada. Pendiente (no hecho): impedir también el desembolso de una solicitud ya radicada si el deudor tiene multas.
+- Captura NU: el mes se elige por reunión (`lib/capturas.ts`: octubre 2026 como cierre + cada mes cuya reunión ya llegó); lista desplegable para consultar; conciliación con corte al día de la reunión. Botones "Ver" y "Editar" ahora son botones (píldora), no texto subrayado.
+
+## Sesión 9 (cont. 3) — Capturas por ronda y solicitud rápida (sin subir)
+- Captura NU: el desplegable lista octubre 2026 (cierre) y TODAS las rondas del ciclo ("Ronda N · mes · reunión fecha"), se pueden subir por adelantado; las futuras no se concilian. El aviso del Resumen solo marca las rondas cuya reunión ya llegó.
+- `components/SolicitudRapida.tsx`: en Inicio (y arriba en /prestamos) tarjeta "Hay $X disponible para prestar" con "Solicitar $X ahora" (el menor entre tope y caja) o "Pedir otro monto"; sin saldo permite solicitar igual y queda en cola. No aparece si ya tiene préstamo, multas o cuota en mora. Solicitud para externo quedó en un desplegable en /prestamos.
+
+## Sesión 9 (cont. 4) — Tutorial de bienvenida (sin subir)
+- `components/Tutorial.tsx` + contenido en `lib/tutorial.ts` (8 pasos para asociados, 7 para el panel admin). Se abre solo la primera vez en Inicio y en el Resumen admin; se repite desde Perfil y desde Admin -> Más ("Ver tutorial de la plataforma"). Al cerrar/omitir se guarda con `marcarTutorialVisto`.
+- Migración `0014_tutorial_visto.sql` (`perfiles.tutorial_asociado` / `tutorial_admin`). **Falta ejecutarla**; mientras no exista la columna, el tutorial no se abre solo (no rompe nada). Al ejecutarla, todos los usuarios lo verán una vez.
+- Para cambiar el texto del tutorial: editar `lib/tutorial.ts`.
+
+## Sesión 9 (cont. 5) — Tutorial sobre la pantalla y primer ingreso en 2 pasos (sin subir)
+- Tutorial reescrito como recorrido guiado: resalta cada elemento (atributos `data-tour` en Inicio, Resumen admin y barras inferiores) y muestra burbujas con flecha que explican qué hacer. Pasos en `lib/tutorial.ts` (campo `objetivo` = nombres `data-tour`); componente `components/Tutorial.tsx`. Se abre solo la primera vez o con `/?tutorial=1` y `/admin?tutorial=1` (botones en Perfil y Admin -> Más). Si un elemento no existe en pantalla, la burbuja sale centrada.
+- `/completar-cuenta` ahora es un asistente de 2 pasos antes de entrar: (1) correo + contraseña nueva, (2) banco/billetera (Nu, Nequi, Daviplata, Bancolombia, Davivienda, Otro) y número o llave donde recibirá los pagos. Se guarda como "Nu · número" en `perfiles.cuenta_pago`.
+- Flujo de un asociado nuevo: Primer ingreso (celular) -> Completar cuenta (2 pasos) -> Inicio con el recorrido guiado.

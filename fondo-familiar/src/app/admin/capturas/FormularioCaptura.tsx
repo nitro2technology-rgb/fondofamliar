@@ -3,15 +3,23 @@
 import { startTransition, useActionState, useState, type FormEvent } from "react";
 import { subirCaptura, type EstadoForm } from "@/lib/acciones";
 import { datosConImagenComprimida, errorDeArchivo } from "@/lib/comprimir";
+import SelectorArchivo from "@/components/SelectorArchivo";
 
-const campo =
-  "w-full rounded-xl border border-card-border bg-background px-3 py-2 text-sm outline-none focus:border-accent";
+const campo = "w-full rounded-2xl bg-background px-4 py-3 text-sm outline-none ring-1 ring-card-border focus:ring-accent";
 
-export default function FormularioCaptura({ mesActual }: { mesActual: string }) {
+export default function FormularioCaptura({
+  opciones,
+  mesInicial,
+}: {
+  opciones: { valor: string; texto: string; subida: boolean }[];
+  mesInicial: string;
+}) {
+  const [mes, setMes] = useState(mesInicial);
   const [estado, accion, pendiente] = useActionState<EstadoForm, FormData>(subirCaptura, {});
   const [comprimiendo, setComprimiendo] = useState(false);
   const [errorLocal, setErrorLocal] = useState("");
   const ocupado = pendiente || comprimiendo;
+  const reemplaza = opciones.find((o) => o.valor === mes)?.subida;
 
   async function alEnviar(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -27,27 +35,34 @@ export default function FormularioCaptura({ mesActual }: { mesActual: string }) 
   }
 
   return (
-    <form onSubmit={alEnviar} className="space-y-3 rounded-2xl border border-card-border bg-card p-4">
-      <label className="block space-y-1 text-sm">
-        <span className="text-muted">Mes</span>
-        <input type="month" name="mes" defaultValue={mesActual} className={campo} />
-      </label>
-      <label className="block space-y-1 text-sm">
-        <span className="text-muted">Saldo que muestra la cuenta (opcional)</span>
-        <input name="saldo" inputMode="numeric" placeholder="Ej: 1500000" className={campo} />
-      </label>
-      <label className="block space-y-1 text-sm">
-        <span className="text-muted">Captura de pantalla (se comprime sola)</span>
-        <input type="file" name="archivo" accept="image/*" className={campo} />
-      </label>
-      <p className="text-xs text-muted">Si ya hay una captura de ese mes, esta la reemplaza.</p>
-      <div className="flex items-center gap-3">
-        <button disabled={ocupado} className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-accent-fg disabled:opacity-60">
-          {comprimiendo ? "Comprimiendo…" : pendiente ? "Subiendo…" : "Subir captura"}
-        </button>
-        {estado.ok && !ocupado && <span className="text-sm text-ok">Guardada</span>}
-        {(errorLocal || estado.error) && !ocupado && <span className="text-sm text-danger">{errorLocal || estado.error}</span>}
+    <form onSubmit={alEnviar} className="space-y-4 rounded-[28px] bg-card p-5">
+      <div className="grid grid-cols-2 gap-3">
+        <label className="space-y-1.5 text-xs font-medium text-muted">
+          Mes de la captura
+          <select name="mes" value={mes} onChange={(e) => setMes(e.target.value)} className={campo}>
+            {opciones.map((o) => (
+              <option key={o.valor} value={o.valor}>
+                {o.texto}
+                {o.subida ? " ✓" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="space-y-1.5 text-xs font-medium text-muted">
+          Saldo en NU (opcional)
+          <input name="saldo" inputMode="numeric" placeholder="1500000" className={campo} />
+        </label>
       </div>
+
+      <SelectorArchivo titulo="Elegir captura de la cuenta NU" ayuda="Pantallazo del saldo a fin de mes" />
+
+      {reemplaza && <p className="rounded-xl bg-accent-soft px-3 py-2 text-xs text-accent">Ese mes ya tiene captura: esta la reemplaza.</p>}
+
+      <button disabled={ocupado} className="w-full rounded-full bg-foreground py-3.5 font-semibold text-background disabled:opacity-60">
+        {comprimiendo ? "Comprimiendo…" : pendiente ? "Subiendo…" : "Subir captura"}
+      </button>
+      {estado.ok && !ocupado && <p className="text-center text-sm text-ok">Captura guardada ✓</p>}
+      {(errorLocal || estado.error) && !ocupado && <p className="text-center text-sm text-danger">{errorLocal || estado.error}</p>}
     </form>
   );
 }

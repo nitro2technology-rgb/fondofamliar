@@ -20,7 +20,7 @@ async function Contenido() {
       <div>
         <h1 className="text-4xl font-bold tracking-tight">Hola, {perfil.nombre}</h1>
         <p className="mt-2 text-muted">
-          Para terminar, escribe tu correo electrónico y crea tu contraseña. Con ellos entrarás de ahora en adelante.
+          Antes de entrar necesitamos dos cosas: tu correo con una contraseña propia, y la cuenta donde quieres recibir tus pagos.
         </p>
       </div>
       <FormularioCompletar />
