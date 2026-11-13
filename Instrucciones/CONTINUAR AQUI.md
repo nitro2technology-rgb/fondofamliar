@@ -459,3 +459,6 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 ## Sesión 10 (cont. 8) — 4x1000 en préstamos vigentes y menú al borde
 - Migración **0021_4x1000_prestamos_vigentes.sql**: marca `cobrar_4x1000 = true` en los préstamos vigentes que no lo tenían (los del Excel); el 4x1000 aparece en su primera cuota y se reembolsa una sola vez con el primer interés. Falta ejecutarla.
 - Menú inferior: relleno inferior reducido a `max(0, safe-area - 1.75rem)` (≈ 6 pt en iPhone con barra de inicio) en `BottomNav.tsx` y `AdminNav.tsx`; el fondo de la barra llega al borde.
+
+## Sesión 10 (cont. 9) — Menú al borde en Safari instalada
+- Diagnóstico en iPhone: en Safari (app instalada) `innerHeight` = 797 y la pantalla 844 (faltan 47 px = barra de estado); en Chrome coincide (844). `Cascaron.tsx` ahora es cliente y, con la app instalada y en vertical, usa `max(innerHeight, screen.height)` como alto. «Información de pantalla» en Perfil se conserva para diagnóstico.
