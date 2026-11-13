@@ -795,6 +795,16 @@ export async function guardarAsistencia(reunionId: string, estados: Record<strin
   await supabase.from("multas").delete().eq("reunion_id", reunionId).eq("pagada", false);
   if (nuevasMultas.length) {
     await supabase.from("multas").upsert(nuevasMultas, { onConflict: "reunion_id,asociado_id", ignoreDuplicates: true });
+    // Aviso a quien recibe una multa nueva (no se repite si ya la tenía de antes).
+    for (const m of nuevasMultas) {
+      if ((multasPrevias ?? []).some((x) => x.asociado_id === m.asociado_id)) continue;
+      await enviarPush([m.asociado_id], {
+        titulo: `Tienes una multa de ${pesos(m.monto)}`,
+        cuerpo: `${m.motivo}. Con multas pendientes no puedes solicitar préstamos; te recordaremos cada semana hasta que la pagues.`,
+        url: "/",
+        tag: "multa",
+      }).catch(() => 0);
+    }
   }
   revalidatePath("/admin/asistencia");
   revalidatePath("/admin/multas");
