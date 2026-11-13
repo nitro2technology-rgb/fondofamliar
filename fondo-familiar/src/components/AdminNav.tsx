@@ -18,7 +18,7 @@ export default function AdminNav() {
   const pathname = usePathname();
 
   return (
-    <nav data-tour="nav" className="shrink-0 border-b border-card-border/60 bg-background">
+    <nav data-tour="nav" className="absolute inset-x-0 top-0 z-20 border-b border-card-border/30 bg-background/30 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
       <ul className="mx-auto flex max-w-md">
         {items.map(({ href, label, icon: Icon }) => {
           const activo =

@@ -11,7 +11,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         </Suspense>
       }
     >
-      <main className="mx-auto w-full max-w-md flex-1 px-4 pb-8 pt-6">{children}</main>
+      <main className="mx-auto w-full max-w-md flex-1 px-4 pb-8 pt-[calc(env(safe-area-inset-top)+4.75rem)]">{children}</main>
     </Cascaron>
   );
 }

@@ -29,7 +29,6 @@ async function AdminContenido() {
   return (
     <main className="relative mx-auto w-full max-w-md flex-1 space-y-6 px-4 pt-6">
       <Tutorial panel="admin" abrirAlInicio={!visto} />
-      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[460px] bg-gradient-to-b from-accent/70 via-accent/15 to-transparent" />
 
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-3">

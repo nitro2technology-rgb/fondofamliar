@@ -465,3 +465,6 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 
 ## Sesión 10 (cont. 10) — Menú arriba
 - En Safari con la app instalada la ventana mide 47 px menos que la pantalla (franja inferior fuera de la página, no se puede dibujar). El intento de forzar el alto real recortó el menú. Decisión del usuario: el menú de navegación va **arriba**, bajo la barra de estado (`Cascaron.tsx`, `BottomNav.tsx`, `AdminNav.tsx`); el panel de la campana baja para no taparlo.
+
+## Sesión 10 (cont. 11) — Menú superior translúcido
+- Menú arriba, translúcido (`bg-background/30` + desenfoque) y superpuesto: la zona de contenido ocupa toda la pantalla y se desplaza debajo. El degradado verde pasó a `Cascaron.tsx` (todas las pantallas, detrás de la barra de estado y del menú); se quitó de Inicio y Resumen admin. El relleno superior del contenido lo ponen `(app)/layout.tsx` y `admin/layout.tsx`.

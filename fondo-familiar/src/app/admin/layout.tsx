@@ -11,7 +11,7 @@ export default function AdminLayout({ children }: LayoutProps<"/admin">) {
         </Suspense>
       }
     >
-      <div className="flex flex-1 flex-col pb-8">{children}</div>
+      <div className="flex flex-1 flex-col pb-8 pt-[calc(env(safe-area-inset-top)+4.25rem)]">{children}</div>
     </Cascaron>
   );
 }
