@@ -428,3 +428,4 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - Tutorial: pasos nuevos de campana de avisos y Recuerdos; Perfil menciona foto y notificaciones. Especificaciones de uso y técnicas actualizadas a v3. Se eliminó `lib/mock.ts`; `.gitattributes` fija saltos de línea LF.
 - `Instrucciones/Mensaje para directivos.md`: texto corto para copiar y pegar con las 5 reglas por confirmar.
 - Pendiente de código: respaldo periódico de la base; avisos de cierre de ciclo y acción «cerrar ciclo»; pruebas de punta a punta.
+- Campana de avisos convertida en pestañita desplegable (`components/PanelAvisos.tsx` + `CampanaAvisos.tsx`): al tocarla en Inicio o en el Resumen admin se abre un panel con los últimos 8 avisos (resalta los nuevos, se marcan leídos al abrir) y «Ver todos los avisos» (`/avisos`). (sin subir)
