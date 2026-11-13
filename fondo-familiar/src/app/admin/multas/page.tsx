@@ -89,6 +89,7 @@ function Lista({ titulo, vacio, filas }: { titulo: string; vacio: string; filas:
                 <AvatarSocio nombre={m.nombre} size={40} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{m.nombre}</p>
+                  {!m.pagada && <p className="text-xs font-semibold text-danger">Debe la multa</p>}
                   <p className="truncate text-xs text-muted">
                     {m.motivo}
                     {m.fecha && ` · ${fechaCorta(m.fecha)}`} · {pesos(m.monto)}

@@ -167,7 +167,7 @@ export async function GET(request: Request) {
     const dias = diasEntre(f.antigua, hoy);
     if (dias < 7 || dias % 7 !== 0) continue;
     const titulo = `Tienes multas pendientes por ${pesos(f.total)}`;
-    const cuerpo = "Págalas para estar al día: con multas pendientes no puedes solicitar préstamos.";
+    const cuerpo = "Págalas junto con tu cuota o en efectivo para estar al día: con multas pendientes no puedes solicitar préstamos.";
     const r = await enviarCorreos([f.correo], titulo, plantilla(titulo, [cuerpo], { texto: "Abrir la app", ruta: "/" }));
     avisosMultas += r.enviados + (await enviarPush([id], { titulo, cuerpo, url: "/", tag: "multa" }));
   }

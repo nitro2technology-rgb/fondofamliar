@@ -459,6 +459,84 @@ export async function subirComprobanteAdmin(_: EstadoForm, formData: FormData): 
   return { ok: true };
 }
 
+// Un solo comprobante para varias personas (efectivo recolectado por alguien que transfirió todo junto).
+// La imagen se copia en la carpeta de cada asociado marcado y cada pago queda pendiente de aprobar.
+export async function subirPagoGrupal(_: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const admin = await requerirAdmin();
+  const periodo = String(formData.get("periodo") ?? "");
+  const tipo = String(formData.get("tipo") ?? "");
+  const archivo = formData.get("archivo");
+  const ids = [...new Set(formData.getAll("asociados").map(String))];
+  const recolector = String(formData.get("recolector_id") ?? "") || null;
+  const descripcion = String(formData.get("descripcion") ?? "").trim().slice(0, 120) || `Pago dividido en ${ids.length}`;
+
+  if (tipo !== "fondo" && tipo !== "cadena") return { error: "Tipo de pago no válido." };
+  if (!/^\d{4}-\d{2}-01$/.test(periodo)) return { error: "Mes no válido." };
+  if (ids.length === 0) return { error: "Marca al menos un asociado." };
+  if (!(archivo instanceof File) || archivo.size === 0) return { error: "Adjunta la captura del pago." };
+  if (!archivo.type.startsWith("image/")) return { error: "El archivo debe ser una imagen (pantallazo o foto del comprobante)." };
+  if (archivo.size > 8 * 1024 * 1024) return { error: "La imagen pesa más de 8 MB." };
+
+  const db = clienteAdmin();
+  const { data: cuotas } = await db
+    .from("cuotas")
+    .select("id, asociado_id, ahorro, cadena, juegos, estado")
+    .eq("periodo", periodo)
+    .in("asociado_id", ids);
+
+  let registrados = 0;
+  const omitidos: string[] = [];
+  for (const cuota of cuotas ?? []) {
+    const monto = tipo === "fondo" ? Number(cuota.ahorro) + Number(cuota.juegos) : Number(cuota.cadena);
+    if (cuota.estado === "pagada" || monto <= 0) {
+      omitidos.push(cuota.asociado_id);
+      continue;
+    }
+    const { data: previo } = await db.from("pagos_reportados").select("estado, ruta_archivo").eq("cuota_id", cuota.id).eq("tipo", tipo).maybeSingle();
+    if (previo?.estado === "aprobado") {
+      omitidos.push(cuota.asociado_id);
+      continue;
+    }
+    const ruta = `${cuota.asociado_id}/${cuota.id}-${tipo}-${Date.now()}.jpg`;
+    const { error: errorSubida } = await db.storage.from("comprobantes-pago").upload(ruta, archivo);
+    if (errorSubida) {
+      omitidos.push(cuota.asociado_id);
+      continue;
+    }
+    const { error } = await db.from("pagos_reportados").upsert(
+      {
+        cuota_id: cuota.id,
+        asociado_id: cuota.asociado_id,
+        tipo,
+        monto,
+        ruta_archivo: ruta,
+        subido_por: admin.id,
+        descripcion,
+        recolector_id: recolector,
+        estado: "pendiente",
+        nota: null,
+        creado_en: new Date().toISOString(),
+        revisado_por: null,
+        revisado_en: null,
+      },
+      { onConflict: "cuota_id,tipo" },
+    );
+    if (error) {
+      await db.storage.from("comprobantes-pago").remove([ruta]);
+      omitidos.push(cuota.asociado_id);
+      continue;
+    }
+    if (previo?.ruta_archivo) await db.storage.from("comprobantes-pago").remove([previo.ruta_archivo]);
+    registrados++;
+  }
+
+  revalidatePath("/admin/pagos");
+  revalidatePath("/pagos");
+  if (registrados === 0) return { error: "No se registró ninguno (ya estaban pagados o aprobados)." };
+  if (omitidos.length > 0) return { error: `Se registraron ${registrados}; ${omitidos.length} se omitieron porque ya estaban pagados o aprobados.` };
+  return { ok: true };
+}
+
 // Un administrador aprueba, rechaza o reabre un pago reportado. Cuando el fondo y (si corresponde)
 // la cadena de la cuota están aprobados, la cuota pasa a pagada y cambia el estado de cuenta.
 export async function revisarPago(
@@ -800,7 +878,7 @@ export async function guardarAsistencia(reunionId: string, estados: Record<strin
       if ((multasPrevias ?? []).some((x) => x.asociado_id === m.asociado_id)) continue;
       await enviarPush([m.asociado_id], {
         titulo: `Tienes una multa de ${pesos(m.monto)}`,
-        cuerpo: `${m.motivo}. Con multas pendientes no puedes solicitar préstamos; te recordaremos cada semana hasta que la pagues.`,
+        cuerpo: `${m.motivo}. Con multas pendientes no puedes solicitar préstamos. Puedes pagarla junto con tu cuota o en efectivo; te recordaremos cada semana hasta que se registre.`,
         url: "/",
         tag: "multa",
       }).catch(() => 0);
@@ -814,13 +892,25 @@ export async function guardarAsistencia(reunionId: string, estados: Record<strin
 export async function marcarMultaPagada(formData: FormData) {
   await requerirAdmin();
   const supabase = await crearClienteServidor();
-  await supabase
+  const id = String(formData.get("id"));
+  const pagada = formData.get("pagada") === "si";
+  const { data: multa } = await supabase
     .from("multas")
-    .update(
-      formData.get("pagada") === "si" ? { pagada: true, pagada_en: hoyColombia() } : { pagada: false, pagada_en: null },
-    )
-    .eq("id", String(formData.get("id")));
+    .update(pagada ? { pagada: true, pagada_en: hoyColombia() } : { pagada: false, pagada_en: null })
+    .eq("id", id)
+    .select("asociado_id, monto")
+    .maybeSingle();
+  if (multa && pagada) {
+    await enviarPush([multa.asociado_id], {
+      titulo: "Tu multa quedó pagada",
+      cuerpo: `Registramos el pago de tu multa de ${pesos(Number(multa.monto))}. Gracias.`,
+      url: "/",
+      tag: "multa",
+    }).catch(() => 0);
+  }
   revalidatePath("/admin/multas");
+  revalidatePath("/admin/pagos");
+  revalidatePath("/");
 }
 
 // Resultado de los juegos de una reunión: la mitad del recaudo va a premios y la otra mitad a utilidad.

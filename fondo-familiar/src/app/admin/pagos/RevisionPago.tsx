@@ -21,6 +21,8 @@ export default function RevisionPago({
   notaInicial,
   confirmadoPor,
   cargadoPor,
+  descripcion,
+  recolector,
   url,
 }: {
   id: string;
@@ -30,6 +32,8 @@ export default function RevisionPago({
   notaInicial: string | null;
   confirmadoPor: string | null;
   cargadoPor: string | null;
+  descripcion?: string | null;
+  recolector?: string | null;
   url: string | null;
 }) {
   const [estado, setEstado] = useState<Estado>(estadoInicial);
@@ -68,6 +72,13 @@ export default function RevisionPago({
         <span className={`rounded-full px-2 py-0.5 text-xs ${clase}`}>{textoEstado}</span>
       </div>
       {cargadoPor && <p className="text-xs text-muted">Comprobante cargado por {cargadoPor}</p>}
+      {(descripcion || recolector) && (
+        <p className="text-xs text-muted">
+          {recolector && <>Efectivo recolectado por <span className="font-medium text-foreground">{recolector}</span></>}
+          {recolector && descripcion && " · "}
+          {descripcion}
+        </p>
+      )}
       {estado === "aprobado" && confirmadoPor && <p className="text-xs text-muted">Confirmado por {confirmadoPor}</p>}
       {estado === "rechazado" && nota && <p className="text-xs text-danger">Motivo: {nota}</p>}
 

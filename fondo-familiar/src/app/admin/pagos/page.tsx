@@ -11,6 +11,8 @@ import RevisionPagoPrestamo from "./RevisionPagoPrestamo";
 import SelectorPeriodo from "./SelectorPeriodo";
 import AccionesCuota from "./AccionesCuota";
 import SubirPagoPrestamoAdmin from "./SubirPagoPrestamoAdmin";
+import PagoGrupal from "./PagoGrupal";
+import MultaEnPago from "./MultaEnPago";
 import AvatarSocio from "@/components/AvatarSocio";
 
 type Filtro = "deben" | "pagaron" | "todos";
@@ -109,16 +111,27 @@ async function VistaCuota({ periodoPedido, filtro }: { periodoPedido: string; fi
   const { data: reportes } = ids.length
     ? await supabase
         .from("pagos_reportados")
-        .select("id, cuota_id, tipo, estado, nota, monto, ruta_archivo, revisado_por, asociado_id, subido_por")
+        .select("id, cuota_id, tipo, estado, nota, monto, ruta_archivo, revisado_por, asociado_id, subido_por, descripcion, recolector_id")
         .in("cuota_id", ids)
     : { data: [] };
 
-  const revisores = [...new Set((reportes ?? []).flatMap((r) => [r.revisado_por, r.subido_por]).filter(Boolean))] as string[];
+  const revisores = [...new Set((reportes ?? []).flatMap((r) => [r.revisado_por, r.subido_por, r.recolector_id]).filter(Boolean))] as string[];
   const { data: personas } = revisores.length ? await supabase.from("perfiles").select("id, nombre").in("id", revisores) : { data: [] };
   const confirmadoPor = (r: { estado: string; revisado_por: string | null }) =>
     r.estado === "aprobado" ? ((personas ?? []).find((p) => p.id === r.revisado_por)?.nombre ?? null) : null;
   const cargadoPor = (r: { subido_por: string | null; asociado_id: string }) =>
     r.subido_por && r.subido_por !== r.asociado_id ? ((personas ?? []).find((p) => p.id === r.subido_por)?.nombre ?? "un administrador") : null;
+
+  const recolectorDe = (r: { recolector_id: string | null }) =>
+    r.recolector_id ? ((personas ?? []).find((p) => p.id === r.recolector_id)?.nombre ?? null) : null;
+
+  // Multas pendientes: el directivo verifica en el comprobante si venían incluidas en el pago.
+  const { data: multasPend } = await supabase
+    .from("multas")
+    .select("id, asociado_id, motivo, monto")
+    .eq("pagada", false);
+  const multasDe = (asociadoId: string) => (multasPend ?? []).filter((m) => m.asociado_id === asociadoId);
+  const { data: activos } = await supabase.from("perfiles").select("id, nombre").eq("activo", true).order("nombre");
 
   const rutas = (reportes ?? []).map((r) => r.ruta_archivo);
   const { data: firmadas } = rutas.length ? await supabase.storage.from("comprobantes-pago").createSignedUrls(rutas, 3600) : { data: [] };
@@ -173,6 +186,8 @@ async function VistaCuota({ periodoPedido, filtro }: { periodoPedido: string; fi
       notaInicial={rep.nota}
       confirmadoPor={confirmadoPor(rep)}
       cargadoPor={cargadoPor(rep)}
+      descripcion={rep.descripcion}
+      recolector={recolectorDe(rep)}
       url={urlDe(rep.ruta_archivo)}
     />
   );
@@ -203,6 +218,12 @@ async function VistaCuota({ periodoPedido, filtro }: { periodoPedido: string; fi
 
       {filtro !== "pagaron" && <CopiarPendientes texto={textoPendientes} />}
 
+      <PagoGrupal
+        periodo={periodo}
+        deben={deben.map((f) => ({ id: f.asociadoId, nombre: f.nombre }))}
+        personas={(activos ?? []).map((p) => ({ id: p.id, nombre: p.nombre }))}
+      />
+
       {visibles.length === 0 && <p className="py-4 text-center text-muted">{filtro === "deben" ? "¡Nadie debe este mes!" : "Nadie en esta lista."}</p>}
 
       <div className="space-y-3">
@@ -223,6 +244,10 @@ async function VistaCuota({ periodoPedido, filtro }: { periodoPedido: string; fi
                   {f.pagada ? "Pagada" : f.porRevisar > 0 ? `${f.porRevisar} por revisar` : hayEnviados ? "Incompleta" : "Sin enviar"}
                 </span>
               </div>
+
+              {multasDe(f.asociadoId).map((m) => (
+                <MultaEnPago key={m.id} id={m.id} motivo={m.motivo} monto={pesos(Number(m.monto))} />
+              ))}
 
               {f.pagada ? (
                 <div className="space-y-2">

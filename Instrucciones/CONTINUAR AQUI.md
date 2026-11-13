@@ -449,3 +449,9 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 ## Sesión 10 (cont. 6) — Campana en vivo y menú más abajo (compila, pasa lint y build)
 - Campana en vivo: `PanelAvisos` consulta `avisosRecientes()` (acción de servidor) cada 20 s con la app visible y al volver a ella; el contador y la lista se actualizan solos.
 - Menú inferior: relleno inferior reducido a `max(0.25rem, safe-area - 1.25rem)` para que quede en el borde (en el pantallazo sobraban ~60 pt bajo las etiquetas). Si queda muy pegado al indicador de inicio del iPhone, subir el 1.25rem en `BottomNav.tsx` y `AdminNav.tsx`.
+
+## Sesión 10 (cont. 7) — Avisos reforzados, pago en efectivo/grupal y multas en el pago (compila, pasa lint y build)
+- Avisos: reunión (push diario la semana previa, correo a 7 y 1 día), interés de préstamo (push diario la semana previa; correo 7 días, 1 día y el día), multas pendientes (push + correo cada 7 días y push al generarse).
+- **Pago en efectivo / de varios** (Admin > Pagos > Cuota > «Registrar pago en efectivo / de varios»): un solo pantallazo se copia en cada asociado marcado, con descripción libre (por defecto «Pago dividido en N») y quién recolectó (cualquier asociado). Cada pago queda pendiente de aprobar y muestra «Efectivo recolectado por X · descripción». Migración **0020_pago_grupal.sql** (`pagos_reportados.descripcion`, `recolector_id`): falta ejecutarla.
+- **Multas en el pago**: en cada tarjeta de Admin > Pagos aparece «Debe la multa» con el botón «Venía en este pago» (la marca cobrada y avisa al asociado) o se deja pendiente. En Admin > Multas las pendientes dicen «Debe la multa».
+- Pendiente: pagos de préstamo en efectivo/grupales (hoy se suben uno por uno con `SubirPagoPrestamoAdmin`).
