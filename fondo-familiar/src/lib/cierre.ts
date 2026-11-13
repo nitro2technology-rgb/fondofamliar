@@ -15,6 +15,13 @@ export function plazoDevolucion(fecha: string, hora: string) {
   return { reunion, limite, horaReunion: fmt(reunion), horaLimite: fmt(limite) };
 }
 
+// ¿Está cerrado el ciclo? (interruptor en parámetros; si no existe, se considera abierto)
+export async function cicloCerrado() {
+  const supabase = await crearClienteServidor();
+  const { data } = await supabase.from("parametros").select("valor").eq("clave", "ciclo_cerrado").maybeSingle();
+  return Number(data?.valor ?? 0) === 1;
+}
+
 // ¿Ya venció el plazo para devolver los préstamos (un minuto antes de la última reunión)?
 export async function plazoVencido() {
   const supabase = await crearClienteServidor();

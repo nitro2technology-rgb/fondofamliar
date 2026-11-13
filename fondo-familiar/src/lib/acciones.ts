@@ -9,7 +9,7 @@ import { requerirAdmin, requerirPerfil, requerirSesion as requerirSesionPerfil }
 import { hoyColombia, pesos } from "@/lib/format";
 import { enviarCorreos, plantilla } from "@/lib/correo";
 import { resumenPrestamo } from "@/lib/cuentas";
-import { plazoVencido } from "@/lib/cierre";
+import { cicloCerrado, datosCierre, plazoVencido } from "@/lib/cierre";
 import { gmfPorPagar } from "@/lib/prestamos";
 import { enviarPush, enviarPushAdmins } from "@/lib/push";
 
@@ -501,6 +501,8 @@ export async function solicitarPrestamo(_: EstadoForm, formData: FormData): Prom
   const externo = String(formData.get("externo") ?? "").trim();
   const hoy = hoyColombia();
 
+  if (await cicloCerrado()) return { error: "El ciclo está cerrado: ya no se reciben solicitudes de préstamo." };
+
   const supabase = await crearClienteServidor();
   const [{ data: tope }, { data: impagas }, { data: turnos }, { data: multas }] = await Promise.all([
     supabase.from("parametros").select("valor").eq("clave", "tope_prestamo").single(),
@@ -589,6 +591,7 @@ export async function votarPrestamo(formData: FormData) {
 export async function desembolsarPrestamo(formData: FormData) {
   const admin = await requerirAdmin();
   const id = String(formData.get("id"));
+  if (await cicloCerrado()) return;
   const supabase = await crearClienteServidor();
   const [{ data: prestamo }, { data: caja }] = await Promise.all([
     supabase.from("prestamos").select("monto, estado, asociado_id").eq("id", id).single(),
@@ -618,6 +621,34 @@ export async function desembolsarPrestamo(formData: FormData) {
     tag: "prestamo-desembolso",
   }).catch(() => 0);
   revalidatePath("/admin/prestamos");
+}
+
+// Cierra el ciclo: bloquea préstamos nuevos y avisa a todos. Solo si no hay préstamos por cancelar.
+export async function cerrarCiclo(): Promise<void> {
+  await requerirAdmin();
+  if ((await datosCierre()).pendientes.length > 0) return;
+  const supabase = await crearClienteServidor();
+  const { error } = await supabase.from("parametros").upsert({ clave: "ciclo_cerrado", valor: 1, descripcion: "Cierre de ciclo: 1 = cerrado, bloquea préstamos nuevos" });
+  if (error) return;
+  await enviarPush(null, {
+    titulo: "El ciclo del fondo se cerró",
+    cuerpo: "Ya no se reciben nuevos préstamos. Pronto se hará la liquidación y la devolución de ahorros y utilidades.",
+    url: "/",
+    tag: "ciclo-cerrado",
+  }).catch(() => 0);
+  revalidatePath("/admin/cierre");
+  revalidatePath("/prestamos");
+  revalidatePath("/");
+}
+
+// Reabre el ciclo (por si se cerró por error).
+export async function reabrirCiclo(): Promise<void> {
+  await requerirAdmin();
+  const supabase = await crearClienteServidor();
+  await supabase.from("parametros").update({ valor: 0 }).eq("clave", "ciclo_cerrado");
+  revalidatePath("/admin/cierre");
+  revalidatePath("/prestamos");
+  revalidatePath("/");
 }
 
 // El asociado reporta un pago de su préstamo (interés, mora y/o abono a capital) con comprobante.

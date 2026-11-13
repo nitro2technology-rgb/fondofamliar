@@ -435,3 +435,8 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - Descarga manual: Admin > Más > Reportes > «Respaldo de la base» (`/admin/respaldo`, solo directivos). Las fotos de Storage no se incluyen.
 - **Migración `0018_respaldos.sql`** (bucket privado `respaldos`): **falta ejecutarla**.
 - Pendiente de código: avisos de cierre de ciclo y acción «cerrar ciclo»; pruebas de punta a punta.
+
+## Sesión 10 (cont. 4) — Cerrar ciclo (compila, pasa lint y build)
+- Parámetro `ciclo_cerrado` (migración **0019_cierre_de_ciclo.sql**, falta ejecutarla). En `/admin/cierre`: botón «Cerrar ciclo y avisar a todos» (solo habilitado sin préstamos por cancelar) y «Reabrir ciclo». Cerrado: `solicitarPrestamo` y `desembolsarPrestamo` se bloquean y el cron deja de avisar «hay dinero disponible». Al cerrar se envía push/aviso a todos.
+- El cron diario avisa por correo + push + bandeja a todos 30, 7 y 1 día antes de la reunión de liquidación (última fecha de la cadena).
+- Pendiente de código: ninguno grande; quedan las pruebas de punta a punta (las haces tú).

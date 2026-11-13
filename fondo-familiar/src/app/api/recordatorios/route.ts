@@ -120,10 +120,24 @@ export async function GET(request: Request) {
     }
   }
 
-  // ───── Dinero disponible para prestar: una vez al día, a todos ─────
+  // ───── Cierre de ciclo: avisos a todos 30, 7 y 1 día antes de la reunión de liquidación ─────
+  const ultima = fechas.length ? fechas.reduce((a, b) => (a > b ? a : b)) : null;
+  const { data: cerrado } = await db.from("parametros").select("valor").eq("clave", "ciclo_cerrado").maybeSingle();
+  const cicloCerrado = Number(cerrado?.valor ?? 0) === 1;
+  if (ultima && [30, 7, 1].includes(diasEntre(hoy, ultima))) {
+    const dias = diasEntre(hoy, ultima);
+    const cuando = fechaCorta(ultima);
+    const titulo = dias === 1 ? "Mañana es la reunión de liquidación" : `Faltan ${dias} días para la liquidación del fondo`;
+    const cuerpo = `La reunión de liquidación es el ${cuando}. Los préstamos deben quedar pagos (capital, interés y mora) antes de esa reunión; ese día se devuelven ahorros y utilidades.`;
+    const { data: todos } = await db.from("perfiles").select("correo").eq("activo", true);
+    const r = await enviarCorreos((todos ?? []).map((t) => t.correo), titulo, plantilla(titulo, [cuerpo], { texto: "Abrir la app", ruta: "/" }));
+    resumen.cierre = r.enviados + (await enviarPush(null, { titulo, cuerpo, url: "/", tag: "cierre-ciclo" }));
+  }
+
+  // ───── Dinero disponible para prestar: una vez al día, a todos (no si el ciclo está cerrado) ─────
   const { data: caja } = await db.rpc("caja_disponible");
   const disponible = Number(caja ?? 0);
-  if (disponible > 0) {
+  if (disponible > 0 && !cicloCerrado) {
     resumen.caja = await enviarPush(null, {
       titulo: `Hay ${pesos(disponible)} disponibles para prestar`,
       cuerpo: "Si lo necesitas, solicita tu préstamo desde la app.",

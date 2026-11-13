@@ -2,7 +2,9 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { CheckCircle2, Clock, FileText, TriangleAlert } from "lucide-react";
 import { requerirAdmin } from "@/lib/auth";
-import { datosCierre } from "@/lib/cierre";
+import { cicloCerrado, datosCierre } from "@/lib/cierre";
+import { cerrarCiclo, reabrirCiclo } from "@/lib/acciones";
+import BotonEnvio from "@/components/BotonEnvio";
 import { fechaCorta, pesos } from "@/lib/format";
 
 export default function Cierre() {
@@ -15,7 +17,7 @@ export default function Cierre() {
 
 async function Contenido() {
   await requerirAdmin();
-  const c = await datosCierre();
+  const [c, cerrado] = await Promise.all([datosCierre(), cicloCerrado()]);
   const listo = c.pendientes.length === 0;
   const vencido = c.vencido;
 
@@ -46,6 +48,37 @@ async function Contenido() {
             {c.plazo.horaReunion}. Los préstamos deben quedar pagos (capital, interés y mora){" "}
             <span className="font-semibold text-foreground">hasta las {c.plazo.horaLimite}</span> de ese día.
           </p>
+        )}
+      </section>
+
+      {/* Cerrar ciclo */}
+      <section className="space-y-3 rounded-[28px] bg-card p-5">
+        <h2 className="text-lg font-semibold">{cerrado ? "Ciclo cerrado" : "Cerrar el ciclo"}</h2>
+        {cerrado ? (
+          <>
+            <p className="text-sm text-muted">No se aceptan solicitudes ni desembolsos de préstamos nuevos. Si fue por error, puedes reabrirlo.</p>
+            <form action={reabrirCiclo}>
+              <BotonEnvio enviando="Reabriendo…" className="w-full rounded-full bg-background py-3 text-sm font-semibold">
+                Reabrir ciclo
+              </BotonEnvio>
+            </form>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-muted">
+              Bloquea los préstamos nuevos y avisa a todos los asociados. Solo se puede cerrar cuando no quedan préstamos por cancelar.
+            </p>
+            <form action={cerrarCiclo}>
+              <BotonEnvio
+                enviando="Cerrando…"
+                disabled={!listo}
+                className="w-full rounded-full bg-accent py-3 text-sm font-semibold text-accent-fg"
+              >
+                Cerrar ciclo y avisar a todos
+              </BotonEnvio>
+            </form>
+            {!listo && <p className="text-xs text-muted">Aún hay préstamos por cancelar.</p>}
+          </>
         )}
       </section>
 
