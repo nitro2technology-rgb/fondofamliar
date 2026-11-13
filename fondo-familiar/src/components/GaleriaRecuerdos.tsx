@@ -66,7 +66,7 @@ export default function GaleriaRecuerdos({ fotos }: { fotos: FotoRecuerdo[] }) {
 
       {actual && (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex flex-col bg-black/90" onClick={() => setAbierta(null)}>
-          <div className="flex items-center gap-3 p-4 text-white" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-3 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+1rem)] text-white" onClick={(e) => e.stopPropagation()}>
             <Avatar nombre={actual.nombre} size={36} foto={actual.foto} />
             <p className="min-w-0 flex-1 truncate text-sm font-semibold">{actual.nombre}</p>
             <span className="text-xs opacity-70">
@@ -106,7 +106,10 @@ export default function GaleriaRecuerdos({ fotos }: { fotos: FotoRecuerdo[] }) {
               </>
             )}
           </div>
-          <div className="flex justify-center p-4" onClick={(e) => e.stopPropagation()}>
+          <div className="flex flex-wrap items-center justify-center gap-3 px-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-3" onClick={(e) => e.stopPropagation()}>
+            <button type="button" onClick={() => setAbierta(null)} className="rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-black">
+              Cerrar
+            </button>
             {actual.puedeBorrar &&
               (confirmar ? (
                 <div className="flex items-center gap-2">

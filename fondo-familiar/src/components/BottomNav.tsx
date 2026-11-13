@@ -16,7 +16,7 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav data-tour="nav" className="fixed inset-x-0 bottom-0 z-10 border-t border-card-border/60 bg-background/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
+    <nav data-tour="nav" className="shrink-0 border-t border-card-border/60 bg-background/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
       <ul className="mx-auto flex max-w-md">
         {items.map(({ href, label, icon: Icon }) => {
           const activo = href === "/" ? pathname === "/" : pathname.startsWith(href);

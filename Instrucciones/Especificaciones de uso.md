@@ -72,6 +72,8 @@ Aplicación web privada (Art. 7 del estatuto) donde cada asociado verifica sus a
 - Crear/desactivar usuarios, asignar roles.
 - Configurar parámetros (montos, % interés, fechas) sin tocar código.
 - Consultar bitácora de auditoría.
+- Descargar un respaldo completo de la base cuando quiera (Más → Respaldo de la base). Además, cada domingo el sistema genera uno y lo envía por correo al fiscal.
+- Cerrar y reabrir el ciclo (Más → Cierre de ciclo).
 
 ## 5. Flujos principales
 1. **Aporte mensual**: el asociado paga (a) ahorro + juegos a la cuenta NU del fondo y (b) la cadena directamente a quien tiene el turno → sube la captura de cada pago → un administrador aprueba el pago al fondo; el pago de la cadena lo confirma **una** de las dos partes (el receptor con "Recibí" o un administrador con "Aprobar") → con ambos aprobados la cuota queda **pagada** y cambia el estado de cuenta. **Sin comprobante no hay confirmación.** Si alguien no sabe subirlo, el administrador lo carga.
@@ -86,7 +88,8 @@ Cada aviso se guarda en la bandeja (campana) y además se envía por correo y/o 
 - Interés del préstamo: 3 días antes, el día de pago mensual y mora semanal (incluye el 4x1000 en la primera cuota).
 - Solicitud de préstamo aprobada / rechazada, desembolso y pago aprobado / rechazado (al deudor).
 - Nueva solicitud, pago por revisar y resumen de lo que vence hoy (a directivos).
-- «Hay $X disponibles para prestar»: una vez al día a todos, si hay caja.
+- «Hay $X disponibles para prestar»: una vez al día a todos, si hay caja y el ciclo no está cerrado.
+- Liquidación: aviso a todos 30, 7 y 1 día antes de la reunión de liquidación, y aviso al cerrar el ciclo.
 - Push: en iPhone solo funciona con la app instalada desde «Agregar a pantalla de inicio»; en cualquier caso el aviso queda en la campana.
 
 ## 7. Reportes
@@ -149,6 +152,7 @@ Nota: algunas fechas de la lista (p. ej. 08/01/2027, 08/10/2027) no son el segun
 ## 13. Cierre del ciclo
 - Al terminar el fondo (último turno de cadena 12-may-2028) se fija una **reunión de liquidación** donde se reparte todo.
 - Antes de esa reunión todos los préstamos vigentes deben estar totalmente pagados (capital e intereses).
+- **Cerrar ciclo** (directivos): botón disponible solo cuando no quedan préstamos por cancelar; bloquea solicitudes y desembolsos de préstamos nuevos y avisa a todos. Se puede reabrir si fue un error.
 - La app debe: avisar a deudores, mostrar cartera pendiente, y generar un reporte de liquidación por asociado (ahorro + parte de utilidades). Liquidación por asociado = su ahorro acumulado + (utilidades totales ÷ 19), es decir, utilidades (intereses, juegos y multas) en **partes iguales**.
 
 ## 14. Pagos con comprobante y cadena directa (sesión 7)

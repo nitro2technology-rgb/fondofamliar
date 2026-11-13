@@ -19,11 +19,6 @@ function buscar(objetivo?: string[]): HTMLElement | null {
   return null;
 }
 
-function enFijo(el: HTMLElement | null) {
-  for (let n = el; n; n = n.parentElement) if (getComputedStyle(n).position === "fixed") return true;
-  return false;
-}
-
 // Recorrido guiado sobre la pantalla: resalta cada elemento y muestra una burbuja que explica qué hacer ahí.
 // Se abre solo la primera vez (`abrirAlInicio`) o con ?tutorial=1 (enlace de Perfil / Más).
 export default function Tutorial({ panel, abrirAlInicio = false }: { panel: "asociado" | "admin"; abrirAlInicio?: boolean }) {
@@ -63,10 +58,11 @@ export default function Tutorial({ panel, abrirAlInicio = false }: { panel: "aso
   useEffect(() => {
     if (!abierto) return;
     const el = buscar(paso.objetivo);
-    if (el && !enFijo(el)) {
+    const zona = el?.closest<HTMLElement>("[data-scroll]");
+    if (el && zona) {
       // El elemento sube a la parte alta para dejar abajo todo el espacio a la burbuja.
       el.scrollIntoView({ block: "start", behavior: "smooth" });
-      window.scrollBy({ top: -72, behavior: "smooth" });
+      zona.scrollBy({ top: -72, behavior: "smooth" });
     }
     const t = setTimeout(medir, 60);
     return () => clearTimeout(t);

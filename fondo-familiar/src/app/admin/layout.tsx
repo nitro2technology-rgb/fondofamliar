@@ -1,13 +1,17 @@
 import { Suspense } from "react";
 import AdminNav from "@/components/AdminNav";
+import Cascaron from "@/components/Cascaron";
 
 export default function AdminLayout({ children }: LayoutProps<"/admin">) {
   return (
-    <>
-      <div className="flex flex-1 flex-col pb-24">{children}</div>
-      <Suspense fallback={null}>
-        <AdminNav />
-      </Suspense>
-    </>
+    <Cascaron
+      menu={
+        <Suspense fallback={null}>
+          <AdminNav />
+        </Suspense>
+      }
+    >
+      <div className="flex flex-1 flex-col pb-8">{children}</div>
+    </Cascaron>
   );
 }

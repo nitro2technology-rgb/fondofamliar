@@ -35,7 +35,7 @@ export default function VisorImagen({ url, texto = "Ver captura" }: { url: strin
             type="button"
             onClick={() => setAbierto(false)}
             aria-label="Cerrar"
-            className="absolute right-4 top-4 flex size-10 items-center justify-center rounded-full bg-white/15 text-white"
+            className="absolute right-4 top-[calc(env(safe-area-inset-top)+1rem)] flex size-10 items-center justify-center rounded-full bg-white/15 text-white"
           >
             <X size={22} />
           </button>

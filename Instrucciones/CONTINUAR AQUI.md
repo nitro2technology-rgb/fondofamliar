@@ -440,3 +440,8 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - Parámetro `ciclo_cerrado` (migración **0019_cierre_de_ciclo.sql**, falta ejecutarla). En `/admin/cierre`: botón «Cerrar ciclo y avisar a todos» (solo habilitado sin préstamos por cancelar) y «Reabrir ciclo». Cerrado: `solicitarPrestamo` y `desembolsarPrestamo` se bloquean y el cron deja de avisar «hay dinero disponible». Al cerrar se envía push/aviso a todos.
 - El cron diario avisa por correo + push + bandeja a todos 30, 7 y 1 día antes de la reunión de liquidación (última fecha de la cadena).
 - Pendiente de código: ninguno grande; quedan las pruebas de punta a punta (las haces tú).
+
+## Sesión 10 (cont. 5) — Menú inferior fijo, visor de fotos y especificaciones (compila, pasa lint y build)
+- Menú inferior: ya no es `position: fixed`. Nuevo `components/Cascaron.tsx` (usado por `(app)/layout.tsx` y `admin/layout.tsx`): pantalla completa con zona de desplazamiento interna y el menú como parte de la columna, así siempre queda al borde de abajo en todas las secciones. El tutorial desplaza esa zona (`[data-scroll]`).
+- Visor de fotos: la X y el título respetan la barra de estado; abajo hay un botón grande «Cerrar» (Recuerdos y visor de comprobantes).
+- Especificaciones de uso y técnicas actualizadas (respaldo, cierre de ciclo, avisos de liquidación, migraciones 0018-0019).

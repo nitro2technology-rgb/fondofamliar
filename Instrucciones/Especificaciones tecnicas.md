@@ -73,13 +73,14 @@ Reglas de integridad: montos en pesos enteros (COP, sin decimales); movimientos 
 ## 6. Requisitos no funcionales
 - Mobile-first, carga rápida, funciona en iOS y Android; PWA instalable.
 - Idioma español (Colombia), moneda COP, zona horaria America/Bogota.
-- Respaldos: exportación semanal (script/cron a almacenamiento privado) — **pendiente**.
+- Respaldos: **construido**. `lib/respaldo.ts` exporta todas las tablas a un JSON comprimido; los domingos (hora Colombia) el cron `/api/mantener-activo` lo guarda en el bucket privado `respaldos` (últimos 12) y lo envía por correo al fiscal (adjunto Resend). Descarga manual en `/admin/respaldo`. No incluye los archivos de Storage.
+- Estructura de pantalla (móvil): `components/Cascaron.tsx` fija la app a la pantalla completa (`fixed inset-0`) con zona de desplazamiento interna y el menú inferior como parte de la columna (no `position: fixed`), para que el menú quede siempre al borde de abajo en iPhone con la app instalada.
 - Accesibilidad básica (contraste en tema oscuro, tamaños táctiles).
 
 ## 7. Riesgos y decisiones abiertas
 | Riesgo | Mitigación |
 |---|---|
-| Pausa de Supabase gratis por inactividad | Cron diario de Vercel ya implementado (`/api/mantener-activo`); falta exportación periódica de respaldo |
+| Pausa de Supabase gratis por inactividad | Cron diario de Vercel ya implementado (`/api/mantener-activo`) y respaldo semanal construido |
 | Variables y despliegue en Vercel | `SUPABASE_SERVICE_ROLE_KEY` es tipo Sensitive (no se vuelve a ver); cada cambio de variable exige Redeploy; ejecutar las migraciones SQL **antes** de usar el despliegue que las necesita |
 | Migraciones aplicadas al proyecto equivocado de Supabase | Verificar que el SQL Editor esté en el proyecto de la URL de `.env.local` |
 | Interés sobre interés y 4% mensual pueden chocar con la tasa de usura en Colombia | Dejar la regla parametrizable; consultar a los directivos (es una decisión de reglamento, no técnica) |
@@ -119,11 +120,13 @@ Reglas de integridad: montos en pesos enteros (COP, sin decimales); movimientos 
 | 0015 | `prestamos.cobrar_4x1000`, movimiento `reembolso_4x1000`, `pagos_prestamo.monto_4x1000`, `aprobar_pago_prestamo()` y `saldo_calculado()` actualizados, `push_suscripciones` |
 | 0016 | `perfiles.foto_ruta`, buckets `fotos-perfil` y `recuerdos`, tabla `recuerdos` con RLS y límite de 5 |
 | 0017 | Tabla `avisos` (bandeja de avisos con RLS) |
+| 0018 | Bucket privado `respaldos` (respaldo semanal de la base) |
+| 0019 | Parámetro `ciclo_cerrado` (interruptor de cierre de ciclo) |
 
 ## 11. Rutas principales
 - Asociado: `/` (Inicio), `/pagos`, `/recibos` (solo con turno), `/prestamos`, `/calendario`, `/recuerdos` y `/recuerdos/[id]`, `/avisos`, `/perfil`, `/primer-ingreso`, `/completar-cuenta`, `/login`, `/elegir-panel`.
 - Admin: `/admin`, `/admin/pagos`, `/admin/prestamos`, `/admin/cuotas` (consulta), `/admin/asistencia`, `/admin/multas`, `/admin/aportes`, `/admin/capturas`, `/admin/asociados`, `/admin/exportar` (CSV).
 - PDF: `/estado-cuenta` (cada asociado el suyo; admin con `?id=`), `/admin/cartera-pdf`.
-- API (crons diarios, protegidos con `CRON_SECRET`): `/api/mantener-activo`, `/api/recordatorios` (cuotas e intereses de préstamos: 3 días antes, el día, y mora al día siguiente y cada 7 días).
+- API (crons diarios, protegidos con `CRON_SECRET`): `/api/mantener-activo`, `/api/recordatorios` (cuotas e intereses de préstamos: 3 días antes, el día, y mora al día siguiente y cada 7 días; avisos de liquidación a 30, 7 y 1 día). Rutas admin nuevas: `/admin/respaldo` (descarga) y cierre/reapertura de ciclo en `/admin/cierre`.
 - Correos (`lib/correo.ts`, Resend por API HTTP): se omiten los correos provisionales `socioN@fondofamiliar...`.
 - Avisos (`lib/push.ts`): `enviarPush` guarda el aviso en la bandeja y lo envía por push a quien activó las notificaciones.
