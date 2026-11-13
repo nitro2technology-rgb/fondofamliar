@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Camera,
   CalendarCheck,
+  DatabaseBackup,
   FileSpreadsheet,
   FileText,
   Gavel,
@@ -39,6 +40,7 @@ const reportes = [
   { href: "/admin/exportar", icon: FileSpreadsheet, titulo: "Cuotas (Excel)" },
   { href: "/admin/cartera-pdf", icon: FileText, titulo: "Cartera de préstamos (PDF)" },
   { href: "/admin/liquidacion-pdf", icon: Repeat, titulo: "Liquidación del ciclo (PDF)" },
+  { href: "/admin/respaldo", icon: DatabaseBackup, titulo: "Respaldo de la base", nota: "Descargar ahora" },
 ];
 
 async function Contenido() {

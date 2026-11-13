@@ -429,3 +429,9 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - `Instrucciones/Mensaje para directivos.md`: texto corto para copiar y pegar con las 5 reglas por confirmar.
 - Pendiente de código: respaldo periódico de la base; avisos de cierre de ciclo y acción «cerrar ciclo»; pruebas de punta a punta.
 - Campana de avisos convertida en pestañita desplegable (`components/PanelAvisos.tsx` + `CampanaAvisos.tsx`): al tocarla en Inicio o en el Resumen admin se abre un panel con los últimos 8 avisos (resalta los nuevos, se marcan leídos al abrir) y «Ver todos los avisos» (`/avisos`). (sin subir)
+
+## Sesión 10 (cont. 3) — Respaldo de la base (sin subir; compila, pasa lint y build)
+- `lib/respaldo.ts`: exporta todas las tablas (paginado de 1000) a un JSON comprimido (gzip). El cron diario `/api/mantener-activo` lo ejecuta **los domingos** (hora Colombia): lo guarda en el bucket privado `respaldos` (se conservan los últimos 12) y lo envía por correo (adjunto, Resend) al fiscal. Un fallo no afecta el cron. No se agregó un tercer cron (límite del plan Hobby).
+- Descarga manual: Admin > Más > Reportes > «Respaldo de la base» (`/admin/respaldo`, solo directivos). Las fotos de Storage no se incluyen.
+- **Migración `0018_respaldos.sql`** (bucket privado `respaldos`): **falta ejecutarla**.
+- Pendiente de código: avisos de cierre de ciclo y acción «cerrar ciclo»; pruebas de punta a punta.
