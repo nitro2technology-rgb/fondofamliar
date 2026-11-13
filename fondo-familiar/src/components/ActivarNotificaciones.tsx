@@ -22,11 +22,13 @@ const esInstalada = () =>
   (window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true);
 
 // Activa las notificaciones push del celular. `compacto` = aviso para Inicio (se oculta si ya está activo).
-export default function ActivarNotificaciones({ compacto = false }: { compacto?: boolean }) {
+// `modo="burbuja"` = ventana en el centro que se muestra siempre que la app esté instalada y las notificaciones sigan sin activar.
+export default function ActivarNotificaciones({ compacto = false, modo = "tarjeta" }: { compacto?: boolean; modo?: "tarjeta" | "burbuja" }) {
   const [estado, setEstado] = useState<Estado>("cargando");
   const [error, setError] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const [prueba, setPrueba] = useState("");
+  const [ahoraNo, setAhoraNo] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -108,6 +110,30 @@ export default function ActivarNotificaciones({ compacto = false }: { compacto?:
   }
 
   if (estado === "cargando") return null;
+
+  if (modo === "burbuja") {
+    if (estado !== "inactivo" || ahoraNo || !esInstalada()) return null;
+    return (
+      <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/70 p-6" role="dialog" aria-modal="true" aria-label="Activar notificaciones">
+        <div className="w-full max-w-sm space-y-4 rounded-3xl bg-card p-6 text-center text-foreground shadow-2xl ring-1 ring-card-border">
+          <span className="mx-auto grid size-14 place-items-center rounded-full bg-accent-soft text-accent">
+            <Bell size={26} />
+          </span>
+          <div className="space-y-1.5">
+            <h2 className="text-lg font-extrabold leading-tight">Activa las notificaciones</h2>
+            <p className="text-sm text-muted">Te avisamos cuándo te toca pagar, lo de tu préstamo, las reuniones y cuando haya dinero disponible.</p>
+          </div>
+          {error && <p className="text-xs text-danger">{error}</p>}
+          <button onClick={activar} disabled={ocupado} className="w-full rounded-full bg-accent py-3.5 text-sm font-semibold text-accent-fg disabled:opacity-60">
+            {ocupado ? "Activando…" : "Activar notificaciones"}
+          </button>
+          <button onClick={() => setAhoraNo(true)} className="text-xs font-medium text-muted">
+            Ahora no
+          </button>
+        </div>
+      </div>
+    );
+  }
   if (compacto && estado !== "inactivo" && estado !== "instalar") return null;
 
   if (estado === "instalar" || estado === "no-soportado" || estado === "sin-llave") {

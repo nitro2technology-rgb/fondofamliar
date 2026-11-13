@@ -1,14 +1,15 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { ArrowLeft, Camera, Landmark, Lock, Mail } from "lucide-react";
+import { ArrowLeft, Bell, Camera, Landmark, Lock, Mail } from "lucide-react";
+import ActivarNotificaciones from "@/components/ActivarNotificaciones";
 import SubirFotoPerfil from "@/components/SubirFotoPerfil";
 import { completarCuenta, type EstadoForm } from "@/lib/acciones";
 
 const campo = "w-full rounded-2xl border border-card-border bg-card px-4 py-4 outline-none focus:border-accent";
 const BANCOS = ["Nu", "Nequi", "Daviplata", "Bancolombia", "Davivienda", "Otro"];
 
-// Primer ingreso en tres pasos: 1) correo y contraseña propia; 2) dónde quieres recibir tus pagos; 3) foto de perfil (opcional).
+// Primer ingreso en cuatro pasos: 1) correo y contraseña propia; 2) dónde quieres recibir tus pagos; 3) notificaciones; 4) foto de perfil (opcional).
 // Todos los campos quedan montados (solo se ocultan) para que el envío incluya los de ambos pasos.
 export default function FormularioCompletar({ nombre }: { nombre: string }) {
   const [estado, accion, pendiente] = useActionState<EstadoForm, FormData>(completarCuenta, {});
@@ -34,10 +35,10 @@ export default function FormularioCompletar({ nombre }: { nombre: string }) {
   return (
     <form action={accion} className="space-y-4">
       <div className="flex items-center gap-2">
-        {[1, 2, 3].map((n) => (
+        {[1, 2, 3, 4].map((n) => (
           <span key={n} className={`h-1.5 flex-1 rounded-full ${n <= paso ? "bg-accent" : "bg-card-border"}`} />
         ))}
-        <span className="ml-1 text-xs text-muted">Paso {paso} de 3</span>
+        <span className="ml-1 text-xs text-muted">Paso {paso} de 4</span>
       </div>
 
       <div className={paso === 1 ? "space-y-3" : "hidden"}>
@@ -101,13 +102,29 @@ export default function FormularioCompletar({ nombre }: { nombre: string }) {
 
       <div className={paso === 3 ? "space-y-4" : "hidden"}>
         <p className="flex items-center gap-2 font-semibold">
+          <Bell size={18} className="text-accent" /> Activa las notificaciones
+        </p>
+        <p className="text-sm text-muted">Así te avisamos cuándo te toca pagar, lo de tu préstamo y las reuniones. Toca «Activar» y acepta el permiso.</p>
+        <ActivarNotificaciones />
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setPaso(2)} aria-label="Volver" className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-card">
+            <ArrowLeft size={20} />
+          </button>
+          <button type="button" onClick={() => setPaso(4)} className="flex-1 rounded-2xl bg-accent py-4 font-semibold text-accent-fg">
+            Continuar
+          </button>
+        </div>
+      </div>
+
+      <div className={paso === 4 ? "space-y-4" : "hidden"}>
+        <p className="flex items-center gap-2 font-semibold">
           <Camera size={18} className="text-accent" /> Tu foto de perfil
         </p>
         <p className="text-sm text-muted">Así te verán los demás asociados. Es opcional: puedes agregarla o cambiarla después en tu Perfil.</p>
         <SubirFotoPerfil nombre={nombre} actual={null} tamano={132} alCambiar={setConFoto} />
         {estado.error && <p className="text-sm text-danger">{estado.error}</p>}
         <div className="flex gap-2">
-          <button type="button" onClick={() => setPaso(2)} aria-label="Volver" className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-card">
+          <button type="button" onClick={() => setPaso(3)} aria-label="Volver" className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-card">
             <ArrowLeft size={20} />
           </button>
           <button disabled={pendiente} className="flex-1 rounded-2xl bg-accent py-4 font-semibold text-accent-fg disabled:opacity-60">

@@ -471,3 +471,7 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 
 ## 2026-11-13 — Lanzamiento a los asociados
 - Excel y 4x1000 confirmados por el usuario; respaldo funciona. Usura descartada (el fondo no es una entidad financiera). Pendiente de respuesta de los directivos: mora (fórmula), caja prestable (ahorro + inicial + intereses) y préstamos simultáneos (hoy: uno a la vez). Pendiente: confirmar correo del respaldo el primer domingo.
+
+- Respuesta del contador (Freddy, audio): mora = 4 % sobre monto + interés pendiente (coincide con lo implementado), tope $1.000.000 y un solo préstamo activo por persona (ya implementado). Sin cambios de código.
+
+- Notificaciones al ingresar: el primer ingreso (`/completar-cuenta`) ahora tiene 4 pasos (correo y contraseña, cuenta de pagos, **notificaciones**, foto). Con la app instalada, `ActivarNotificaciones modo="burbuja"` (en `(app)/layout.tsx` y `admin/layout.tsx`) muestra una ventana centrada «Activa las notificaciones» a quien no las tiene activas, en cada apertura de la app («Ahora no» la oculta hasta la próxima apertura). Instalación como app: se explica en un video del usuario. Mora, tope $1.000.000 y un préstamo activo por persona: respuesta definitiva de los directivos (sin cambios).

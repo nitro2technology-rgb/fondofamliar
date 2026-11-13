@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import AdminNav from "@/components/AdminNav";
 import Cascaron from "@/components/Cascaron";
+import ActivarNotificaciones from "@/components/ActivarNotificaciones";
 
 export default function AdminLayout({ children }: LayoutProps<"/admin">) {
   return (
@@ -12,6 +13,7 @@ export default function AdminLayout({ children }: LayoutProps<"/admin">) {
       }
     >
       <div className="flex flex-1 flex-col pb-8 pt-[calc(env(safe-area-inset-top)+4.25rem)]">{children}</div>
+      <ActivarNotificaciones modo="burbuja" />
     </Cascaron>
   );
 }
