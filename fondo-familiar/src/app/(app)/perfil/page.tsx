@@ -9,6 +9,7 @@ import { cerrarSesion } from "@/lib/acciones";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { fechaCorta } from "@/lib/format";
 import FormularioCuenta from "./FormularioCuenta";
+import DiagnosticoPantalla from "@/components/DiagnosticoPantalla";
 import { CircleHelp } from "lucide-react";
 
 const etiquetaRol = {
@@ -73,6 +74,7 @@ async function PerfilContenido() {
           Cerrar sesión
         </button>
       </form>
+      <DiagnosticoPantalla />
     </div>
   );
 }
