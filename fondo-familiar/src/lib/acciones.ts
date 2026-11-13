@@ -647,23 +647,35 @@ export async function votarPrestamo(formData: FormData) {
   if (voto !== "aprobar" && voto !== "rechazar") return;
   const supabase = await crearClienteServidor();
   const prestamoId = String(formData.get("id"));
-  const { error } = await supabase.from("votos_prestamo").insert({ prestamo_id: prestamoId, admin_id: admin.id, voto });
+  const comentario = String(formData.get("comentario") ?? "").trim().slice(0, 200) || null;
+  const { error } = await supabase.from("votos_prestamo").insert({ prestamo_id: prestamoId, admin_id: admin.id, voto, comentario });
   if (!error) {
     // Si con este voto se decidió la solicitud, se avisa al solicitante.
     const { data: p } = await supabase.from("prestamos").select("estado, monto, asociado_id").eq("id", prestamoId).single();
     if (p && (p.estado === "aprobado" || p.estado === "rechazado")) {
+      const { data: notas } = await supabase.from("votos_prestamo").select("comentario").eq("prestamo_id", prestamoId);
+      const detalle = (notas ?? []).map((n) => n.comentario).filter(Boolean).join(" · ");
       await enviarPush([p.asociado_id], {
         titulo: p.estado === "aprobado" ? "Tu préstamo fue aprobado" : "Tu solicitud de préstamo fue rechazada",
         cuerpo:
-          p.estado === "aprobado"
+          (p.estado === "aprobado"
             ? `Los directivos aprobaron ${pesos(Number(p.monto))}. Pronto se te entregará el dinero.`
-            : "Los directivos no aprobaron tu solicitud. Consulta con ellos los detalles.",
+            : "Los directivos no aprobaron tu solicitud.") + (detalle ? ` Nota: ${detalle}` : " Consulta con ellos los detalles."),
         url: "/prestamos",
         tag: "prestamo-decision",
       }).catch(() => 0);
     }
   }
   revalidatePath("/admin/prestamos");
+}
+
+// Nota interna de un préstamo (para dejar constancia de lo que ocurra con él).
+export async function guardarNotaPrestamo(id: string, nota: string): Promise<EstadoForm> {
+  await requerirAdmin();
+  const { error } = await clienteAdmin().from("prestamos").update({ nota: nota.trim().slice(0, 500) || null }).eq("id", id);
+  if (error) return { error: "No se pudo guardar la nota." };
+  revalidatePath("/admin/prestamos");
+  return { ok: true };
 }
 
 export async function desembolsarPrestamo(formData: FormData) {

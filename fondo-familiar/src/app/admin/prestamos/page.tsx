@@ -6,6 +6,7 @@ import BotonEnvio from "@/components/BotonEnvio";
 import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { desembolsarPrestamo, votarPrestamo } from "@/lib/acciones";
+import NotaPrestamo from "./NotaPrestamo";
 import { cuentasPrestamo } from "@/lib/prestamos";
 import { fechaCorta, hoyColombia, pesos } from "@/lib/format";
 
@@ -28,16 +29,16 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
     await Promise.all([
       supabase
         .from("prestamos")
-        .select("id, asociado_id, monto, estado, radicado_en, desembolsado_en, cobrar_4x1000, perfiles!prestamos_asociado_id_fkey(nombre), externos(nombre)")
+        .select("id, asociado_id, monto, estado, radicado_en, desembolsado_en, cobrar_4x1000, nota, perfiles!prestamos_asociado_id_fkey(nombre), externos(nombre)")
         .in("estado", ["radicado", "aprobado", "vigente"])
         .order("radicado_en"),
       supabase
         .from("prestamos")
-        .select("id, asociado_id, monto, estado, radicado_en, perfiles!prestamos_asociado_id_fkey(nombre)")
+        .select("id, asociado_id, monto, estado, radicado_en, nota, perfiles!prestamos_asociado_id_fkey(nombre)")
         .in("estado", ["pagado", "rechazado"])
         .order("radicado_en", { ascending: false })
         .limit(20),
-      supabase.from("votos_prestamo").select("prestamo_id, admin_id, voto"),
+      supabase.from("votos_prestamo").select("prestamo_id, admin_id, voto, comentario"),
       supabase.from("movimientos_prestamo").select("prestamo_id, tipo, monto, fecha"),
       supabase.from("parametros").select("clave, valor").in("clave", ["interes_prestamo_pct", "interes_mora_pct"]),
       supabase.rpc("caja_disponible"),
@@ -183,6 +184,12 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
                         ) : (
                           <form action={votarPrestamo} className="grid grid-cols-2 gap-2">
                             <input type="hidden" name="id" value={x.id} />
+                            <input
+                              name="comentario"
+                              maxLength={200}
+                              placeholder="Descripción (opcional; la verá el solicitante)"
+                              className="col-span-2 rounded-2xl border border-card-border bg-background px-3 py-2.5 text-sm outline-none focus:border-accent"
+                            />
                             <button
                               name="voto"
                               value="aprobar"
@@ -201,6 +208,19 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
                         )}
                       </>
                     )}
+
+                    {v.some((o) => o.comentario) && (
+                      <ul className="space-y-1 rounded-2xl bg-background px-3 py-2 text-xs">
+                        {v
+                          .filter((o) => o.comentario)
+                          .map((o) => (
+                            <li key={o.admin_id}>
+                              <span className="font-semibold">{admins?.find((a) => a.id === o.admin_id)?.nombre ?? "Directivo"}</span> ({o.voto === "aprobar" ? "aprobó" : "rechazó"}): {o.comentario}
+                            </li>
+                          ))}
+                      </ul>
+                    )}
+                    <NotaPrestamo id={x.id} inicial={x.nota} />
 
                     {aprobado && (
                       <form action={desembolsarPrestamo} className="space-y-2">
@@ -259,6 +279,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
                   <Dato t="Interés mes" v={pesos(c.interesMensual)} fondo />
                   <Dato t="Interés pend." v={pesos(c.interesPendiente)} fondo />
                 </div>
+                <NotaPrestamo id={x.id} inicial={x.nota} />
                 <Link
                   href="/admin/pagos?tipo=prestamo"
                   className="block rounded-full bg-background py-2.5 text-center text-xs font-semibold"
@@ -276,19 +297,30 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
         <section className="space-y-2">
           {(historial ?? []).length === 0 && <p className="rounded-[28px] bg-card p-5 text-sm text-muted">Aún no hay préstamos cerrados.</p>}
           <div className="divide-y divide-card-border/60 rounded-[28px] bg-card px-2">
-            {(historial ?? []).map((x) => (
-              <Link key={x.id} href={`/admin/socio/${x.asociado_id}`} className="flex items-center gap-3 px-2 py-3.5">
-                <AvatarSocio nombre={nombreDe(x)} size={40} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{nombreDe(x)}</p>
-                  <p className="text-xs text-muted">{fechaCorta(x.radicado_en.slice(0, 10))}</p>
+            {(historial ?? []).map((x) => {
+              const notas = (votos ?? []).filter((o) => o.prestamo_id === x.id && o.comentario);
+              return (
+                <div key={x.id} className="space-y-2 px-2 py-3.5">
+                  <Link href={`/admin/socio/${x.asociado_id}`} className="flex items-center gap-3">
+                    <AvatarSocio nombre={nombreDe(x)} size={40} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{nombreDe(x)}</p>
+                      <p className="text-xs text-muted">{fechaCorta(x.radicado_en.slice(0, 10))}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold">{pesos(Number(x.monto))}</p>
+                      <p className={`text-xs ${x.estado === "pagado" ? "text-ok" : "text-danger"}`}>{x.estado === "pagado" ? "Pagado" : "Rechazado"}</p>
+                    </div>
+                  </Link>
+                  {notas.map((o) => (
+                    <p key={o.admin_id} className="rounded-2xl bg-background px-3 py-2 text-xs">
+                      <span className="font-semibold">{admins?.find((a) => a.id === o.admin_id)?.nombre ?? "Directivo"}</span> ({o.voto === "aprobar" ? "aprobó" : "rechazó"}): {o.comentario}
+                    </p>
+                  ))}
+                  <NotaPrestamo id={x.id} inicial={x.nota} />
                 </div>
-                <div className="text-right">
-                  <p className="font-semibold">{pesos(Number(x.monto))}</p>
-                  <p className={`text-xs ${x.estado === "pagado" ? "text-ok" : "text-danger"}`}>{x.estado === "pagado" ? "Pagado" : "Rechazado"}</p>
-                </div>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}

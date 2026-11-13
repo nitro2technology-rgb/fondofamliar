@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { requerirPerfil } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
+import { clienteAdmin } from "@/lib/supabase/admin";
 import { cuentasPrestamo } from "@/lib/prestamos";
 import { fechaCorta, hoyColombia, pesos } from "@/lib/format";
 import Link from "next/link";
@@ -49,6 +50,11 @@ async function Contenido() {
 
   const p = Object.fromEntries((params ?? []).map((x) => [x.clave, Number(x.valor)]));
   const lista = prestamos ?? [];
+  // Lo que los directivos escribieron al aprobar o rechazar (los votos no los lee el asociado directamente).
+  const { data: comentarios } = lista.length
+    ? await clienteAdmin().from("votos_prestamo").select("prestamo_id, comentario, voto").in("prestamo_id", lista.map((x) => x.id)).not("comentario", "is", null)
+    : { data: [] };
+  const notasDe = (id: string) => (comentarios ?? []).filter((c) => c.prestamo_id === id && c.comentario);
   const enCurso = lista.find((x) => ["radicado", "aprobado", "vigente"].includes(x.estado));
   const hoy = hoyColombia();
   const puedePedir = Math.min(p.tope_prestamo ?? 1_000_000, Math.max(0, Number(caja ?? 0)));
@@ -183,12 +189,19 @@ async function Contenido() {
           {lista
             .filter((x) => x !== enCurso)
             .map((x) => (
-              <div key={x.id} className="flex justify-between rounded-2xl bg-card p-4 text-sm">
-                <div>
-                  <p>{pesos(Number(x.monto))}</p>
-                  <p className="text-xs text-muted">{fechaCorta(x.radicado_en.slice(0, 10))}</p>
+              <div key={x.id} className="space-y-2 rounded-2xl bg-card p-4 text-sm">
+                <div className="flex justify-between">
+                  <div>
+                    <p>{pesos(Number(x.monto))}</p>
+                    <p className="text-xs text-muted">{fechaCorta(x.radicado_en.slice(0, 10))}</p>
+                  </div>
+                  <p className="text-muted">{ETIQUETA[x.estado]}</p>
                 </div>
-                <p className="text-muted">{ETIQUETA[x.estado]}</p>
+                {notasDe(x.id).map((c, i) => (
+                  <p key={i} className="rounded-xl bg-background px-3 py-2 text-xs text-muted">
+                    <span className="font-semibold text-foreground">Directivos:</span> {c.comentario}
+                  </p>
+                ))}
               </div>
             ))}
         </section>
