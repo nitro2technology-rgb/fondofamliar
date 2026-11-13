@@ -990,6 +990,17 @@ export async function marcarTutorialVisto(panel: "asociado" | "admin") {
 }
 
 // ───────── Notificaciones push ─────────
+// Envía una notificación de prueba al propio celular. Devuelve cuántos dispositivos la recibieron.
+export async function enviarNotificacionPrueba(): Promise<number> {
+  const perfil = await requerirPerfil();
+  return enviarPush([perfil.id], {
+    titulo: "Notificación de prueba",
+    cuerpo: "Si ves esto, las notificaciones funcionan en tu celular.",
+    url: "/",
+    tag: "prueba",
+  });
+}
+
 export async function guardarSuscripcionPush(sub: { endpoint: string; p256dh: string; auth: string }): Promise<EstadoForm> {
   const perfil = await requerirPerfil();
   if (!sub.endpoint.startsWith("https://") || !sub.p256dh || !sub.auth) return { error: "Suscripción no válida." };

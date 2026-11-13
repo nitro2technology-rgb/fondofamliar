@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Bell, BellOff } from "lucide-react";
-import { guardarSuscripcionPush, quitarSuscripcionPush } from "@/lib/acciones";
+import { enviarNotificacionPrueba, guardarSuscripcionPush, quitarSuscripcionPush } from "@/lib/acciones";
 
 type Estado = "cargando" | "sin-llave" | "instalar" | "no-soportado" | "bloqueado" | "inactivo" | "activo";
 
@@ -26,6 +26,7 @@ export default function ActivarNotificaciones({ compacto = false }: { compacto?:
   const [estado, setEstado] = useState<Estado>("cargando");
   const [error, setError] = useState("");
   const [ocupado, setOcupado] = useState(false);
+  const [prueba, setPrueba] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -78,6 +79,19 @@ export default function ActivarNotificaciones({ compacto = false }: { compacto?:
     }
   }
 
+  async function probar() {
+    setOcupado(true);
+    setPrueba("");
+    try {
+      const n = await enviarNotificacionPrueba();
+      setPrueba(n > 0 ? "Enviada: debería llegar en unos segundos." : "No se pudo enviar. Desactiva y vuelve a activar.");
+    } catch {
+      setPrueba("No se pudo enviar.");
+    } finally {
+      setOcupado(false);
+    }
+  }
+
   async function desactivar() {
     setOcupado(true);
     try {
@@ -109,7 +123,7 @@ export default function ActivarNotificaciones({ compacto = false }: { compacto?:
   }
 
   return (
-    <section className="flex items-center gap-3 rounded-[28px] bg-card p-4">
+    <section className="flex flex-wrap items-center gap-3 rounded-[28px] bg-card p-4">
       <span className="grid size-11 shrink-0 place-items-center rounded-full bg-accent-soft text-accent">
         {estado === "activo" ? <Bell size={20} /> : <BellOff size={20} />}
       </span>
@@ -134,14 +148,16 @@ export default function ActivarNotificaciones({ compacto = false }: { compacto?:
         </button>
       )}
       {estado === "activo" && (
-        <button
-          onClick={desactivar}
-          disabled={ocupado}
-          className="shrink-0 rounded-full bg-background px-4 py-2 text-xs font-semibold text-muted disabled:opacity-60"
-        >
-          Desactivar
-        </button>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <button onClick={probar} disabled={ocupado} className="rounded-full bg-accent px-4 py-2 text-xs font-semibold text-accent-fg disabled:opacity-60">
+            Probar
+          </button>
+          <button onClick={desactivar} disabled={ocupado} className="rounded-full bg-background px-4 py-2 text-xs font-semibold text-muted disabled:opacity-60">
+            Desactivar
+          </button>
+        </div>
       )}
+      {prueba && <p className="basis-full text-xs text-muted">{prueba}</p>}
     </section>
   );
 }
