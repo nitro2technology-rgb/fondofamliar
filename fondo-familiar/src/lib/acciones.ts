@@ -7,7 +7,7 @@ import { crearClienteServidor } from "@/lib/supabase/server";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { requerirAdmin, requerirPerfil, requerirSesion as requerirSesionPerfil } from "@/lib/auth";
 import { hoyColombia, pesos } from "@/lib/format";
-import { enviarCorreos, plantilla } from "@/lib/correo";
+import { enviarCorreos, plantilla, plantillaBienvenida } from "@/lib/correo";
 import { resumenPrestamo } from "@/lib/cuentas";
 import { cicloCerrado, datosCierre, plazoVencido } from "@/lib/cierre";
 import { gmfPorPagar } from "@/lib/prestamos";
@@ -92,7 +92,7 @@ export async function completarCuenta(_: EstadoForm, formData: FormData): Promis
   const admin = clienteAdmin();
   const { data: perfil } = await admin
     .from("perfiles")
-    .select("primer_ingreso_completo")
+    .select("primer_ingreso_completo, nombre")
     .eq("id", user.id)
     .single();
   // Evita usar esta acción para cambiar el correo de una cuenta ya completada.
@@ -113,6 +113,8 @@ export async function completarCuenta(_: EstadoForm, formData: FormData): Promis
 
   await admin.from("perfiles").update({ correo, cuenta_pago: cuentaPago, primer_ingreso_completo: true }).eq("id", user.id);
   await supabase.auth.signInWithPassword({ email: correo, password: clave });
+  // Correo de bienvenida (si falla, la cuenta ya quedó lista).
+  await enviarCorreos([correo], "¡Bienvenido al Fondo Familiar!", plantillaBienvenida(perfil?.nombre ?? "")).catch(() => undefined);
   redirect("/elegir-panel");
 }
 
