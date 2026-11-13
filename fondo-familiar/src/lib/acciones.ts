@@ -977,6 +977,17 @@ export async function eliminarRecuerdo(id: string): Promise<EstadoForm> {
 }
 
 // Marca como leídos todos los avisos de la bandeja del usuario.
+// Últimos avisos y cantidad sin leer: la campana lo consulta cada rato para actualizarse sola.
+export async function avisosRecientes() {
+  const perfil = await requerirPerfil();
+  const supabase = await crearClienteServidor();
+  const [{ data }, { count }] = await Promise.all([
+    supabase.from("avisos").select("id, titulo, cuerpo, url, leido, creado_en").eq("asociado_id", perfil.id).order("creado_en", { ascending: false }).limit(8),
+    supabase.from("avisos").select("id", { count: "exact", head: true }).eq("asociado_id", perfil.id).eq("leido", false),
+  ]);
+  return { avisos: data ?? [], sinLeer: count ?? 0 };
+}
+
 export async function marcarAvisosLeidos() {
   const perfil = await requerirPerfil();
   const supabase = await crearClienteServidor();

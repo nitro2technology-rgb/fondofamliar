@@ -445,3 +445,7 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - Menú inferior: ya no es `position: fixed`. Nuevo `components/Cascaron.tsx` (usado por `(app)/layout.tsx` y `admin/layout.tsx`): pantalla completa con zona de desplazamiento interna y el menú como parte de la columna, así siempre queda al borde de abajo en todas las secciones. El tutorial desplaza esa zona (`[data-scroll]`).
 - Visor de fotos: la X y el título respetan la barra de estado; abajo hay un botón grande «Cerrar» (Recuerdos y visor de comprobantes).
 - Especificaciones de uso y técnicas actualizadas (respaldo, cierre de ciclo, avisos de liquidación, migraciones 0018-0019).
+
+## Sesión 10 (cont. 6) — Campana en vivo y menú más abajo (compila, pasa lint y build)
+- Campana en vivo: `PanelAvisos` consulta `avisosRecientes()` (acción de servidor) cada 20 s con la app visible y al volver a ella; el contador y la lista se actualizan solos.
+- Menú inferior: relleno inferior reducido a `max(0.25rem, safe-area - 1.25rem)` para que quede en el borde (en el pantallazo sobraban ~60 pt bajo las etiquetas). Si queda muy pegado al indicador de inicio del iPhone, subir el 1.25rem en `BottomNav.tsx` y `AdminNav.tsx`.

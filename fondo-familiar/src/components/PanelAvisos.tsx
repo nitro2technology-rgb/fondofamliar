@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, X } from "lucide-react";
-import { marcarAvisosLeidos } from "@/lib/acciones";
+import { avisosRecientes, marcarAvisosLeidos } from "@/lib/acciones";
 
 export type AvisoResumen = { id: string; titulo: string; cuerpo: string; url: string | null; leido: boolean; creado_en: string };
 
@@ -18,10 +18,36 @@ function hace(iso: string) {
 }
 
 // Campana con una pestañita desplegable: muestra los últimos avisos sin salir de la pantalla.
-export default function PanelAvisos({ avisos, sinLeer, verTodos }: { avisos: AvisoResumen[]; sinLeer: number; verTodos: string }) {
+export default function PanelAvisos({ avisos: inicial, sinLeer: sinLeerInicial, verTodos }: { avisos: AvisoResumen[]; sinLeer: number; verTodos: string }) {
   const [abierto, setAbierto] = useState(false);
-  const [leidos, setLeidos] = useState(false);
+  const [avisos, setAvisos] = useState(inicial);
+  const [sinLeer, setSinLeer] = useState(sinLeerInicial);
   const caja = useRef<HTMLDivElement>(null);
+
+  // Contador en vivo: se consulta cada 20 s (con la app visible) y al volver a ella.
+  useEffect(() => {
+    if (abierto) return;
+    let activo = true;
+    const consultar = () => {
+      if (document.visibilityState !== "visible") return;
+      avisosRecientes()
+        .then((r) => {
+          if (!activo) return;
+          setAvisos(r.avisos);
+          setSinLeer(r.sinLeer);
+        })
+        .catch(() => {});
+    };
+    const t = setInterval(consultar, 20_000);
+    document.addEventListener("visibilitychange", consultar);
+    window.addEventListener("focus", consultar);
+    return () => {
+      activo = false;
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", consultar);
+      window.removeEventListener("focus", consultar);
+    };
+  }, [abierto]);
 
   useEffect(() => {
     if (!abierto) return;
@@ -43,13 +69,13 @@ export default function PanelAvisos({ avisos, sinLeer, verTodos }: { avisos: Avi
     const abrir = !abierto;
     setAbierto(abrir);
     // Al abrir se marcan como leídos; en pantalla siguen resaltados hasta cerrar.
-    if (abrir && sinLeer > 0 && !leidos) {
-      setLeidos(true);
+    if (abrir && sinLeer > 0) {
+      setSinLeer(0);
       void marcarAvisosLeidos();
     }
   }
 
-  const pendientes = leidos ? 0 : sinLeer;
+  const pendientes = sinLeer;
 
   return (
     <div ref={caja} className="relative" data-tour="avisos">
