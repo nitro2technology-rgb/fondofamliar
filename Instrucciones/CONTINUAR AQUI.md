@@ -419,3 +419,12 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - **Recuerdos** (`/recuerdos`, nuevo ítem en la barra inferior): lista de reuniones ya realizadas (con portada y conteo) y galería por reunión `/recuerdos/[id]` con cuadrícula, visor con flechas, y «Subir fotos» (hasta 5 por persona por reunión; cada una se comprime a 1600 px y se crea miniatura de 480 px). Cada quien borra las suyas; los admins pueden borrar cualquiera. Archivos privados con enlaces firmados de 1 hora.
 - **Migración `0016_fotos_y_recuerdos.sql`** (columna `perfiles.foto_ruta`, buckets `fotos-perfil` público y `recuerdos` privado, tabla `recuerdos` con RLS y trigger de máximo 5). **Falta ejecutarla** (junto con 0015).
 - Nota: el layout de `(app)` envuelve `BottomNav` en `<Suspense>` (necesario para rutas dinámicas con `cacheComponents`).
+
+## Sesión 10 (cont. 2) — Fotos en listas, splash iPhone, bandeja de avisos, limpieza (sin subir; compila, pasa lint y build)
+- Fotos de perfil en todas las listas del admin: `components/AvatarSocio.tsx` (busca la foto por nombre, una consulta por petición) y `fotos` en `FormularioAsistencia`.
+- Splash de iPhone: `public/splash/*` (11 tamaños, generados desde `public/logo/splash.png`) y `lib/splash-ios.ts` conectado en `appleWebApp.startupImage`.
+- Notificaciones en todos los dispositivos: `ActivarNotificaciones` ahora explica la causa (sin clave VAPID en el servidor, iPhone sin instalar, navegador no compatible). Si en el iPhone dice «todavía no están configuradas», faltan las variables VAPID en Vercel (son de build: requieren Redeploy). Además, **bandeja de avisos**: tabla `avisos` (migración **0017**, falta ejecutarla), `/avisos`, campana con contador en Inicio y panel admin; `enviarPush` guarda cada aviso en la bandeja aunque el dispositivo no soporte push.
+- Celular/iPhone: `viewportFit: cover` + relleno superior por la barra de estado (app instalada) y letra de 16 px en campos para evitar el zoom automático de iOS.
+- Tutorial: pasos nuevos de campana de avisos y Recuerdos; Perfil menciona foto y notificaciones. Especificaciones de uso y técnicas actualizadas a v3. Se eliminó `lib/mock.ts`; `.gitattributes` fija saltos de línea LF.
+- `Instrucciones/Mensaje para directivos.md`: texto corto para copiar y pegar con las 5 reglas por confirmar.
+- Pendiente de código: respaldo periódico de la base; avisos de cierre de ciclo y acción «cerrar ciclo»; pruebas de punta a punta.

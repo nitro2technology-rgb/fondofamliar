@@ -15,16 +15,30 @@ function configurar() {
   return true;
 }
 
-// Envía una notificación push a los asociados indicados (o a todos si `ids` es null).
-// Borra las suscripciones que el navegador ya dio de baja. Devuelve cuántas se enviaron.
+// Guarda el aviso en la bandeja de cada persona (se ve en la campana de la app, en cualquier dispositivo).
+async function guardarAvisos(ids: string[] | null, aviso: Aviso) {
+  const db = clienteAdmin();
+  let destinos = ids;
+  if (!destinos) {
+    const { data } = await db.from("perfiles").select("id").eq("activo", true);
+    destinos = (data ?? []).map((p) => p.id);
+  }
+  if (destinos.length === 0) return;
+  // Si la tabla aún no existe, simplemente no se guarda (no rompe el envío).
+  await db
+    .from("avisos")
+    .insert(destinos.map((id) => ({ asociado_id: id, titulo: aviso.titulo, cuerpo: aviso.cuerpo, url: aviso.url ?? null })));
+}
+
+// Envía un aviso a los asociados indicados (o a todos si `ids` es null): lo guarda en su bandeja y, si activaron
+// las notificaciones, lo manda como push. Borra las suscripciones que el navegador ya dio de baja. Devuelve cuántos push se enviaron.
 export async function enviarPush(ids: string[] | null, aviso: Aviso): Promise<number> {
+  if (ids && ids.length === 0) return 0;
+  await guardarAvisos(ids, aviso).catch(() => undefined);
   if (!configurar()) return 0;
   const db = clienteAdmin();
   let consulta = db.from("push_suscripciones").select("id, asociado_id, endpoint, p256dh, auth, perfiles!inner(activo)");
-  if (ids) {
-    if (ids.length === 0) return 0;
-    consulta = consulta.in("asociado_id", ids);
-  }
+  if (ids) consulta = consulta.in("asociado_id", ids);
   const { data } = await consulta;
   const subs = (data ?? []).filter((s) => (s.perfiles as unknown as { activo: boolean } | null)?.activo);
   const caducadas: string[] = [];

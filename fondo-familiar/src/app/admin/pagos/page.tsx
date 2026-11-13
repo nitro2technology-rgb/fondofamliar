@@ -11,7 +11,7 @@ import RevisionPagoPrestamo from "./RevisionPagoPrestamo";
 import SelectorPeriodo from "./SelectorPeriodo";
 import AccionesCuota from "./AccionesCuota";
 import SubirPagoPrestamoAdmin from "./SubirPagoPrestamoAdmin";
-import Avatar from "@/components/Avatar";
+import AvatarSocio from "@/components/AvatarSocio";
 
 type Filtro = "deben" | "pagaron" | "todos";
 
@@ -212,7 +212,7 @@ async function VistaCuota({ periodoPedido, filtro }: { periodoPedido: string; fi
             <div key={f.id} className="space-y-3 rounded-[28px] bg-card p-4">
               <div className="flex items-center justify-between gap-2">
                 <Link href={`/admin/socio/${f.asociadoId}`} className="flex min-w-0 items-center gap-3">
-                  <Avatar nombre={f.nombre} size={40} />
+                  <AvatarSocio nombre={f.nombre} size={40} />
                   <span className="truncate font-semibold">{f.nombre}</span>
                 </Link>
                 <span
@@ -330,7 +330,7 @@ async function VistaPrestamos({ filtro }: { filtro: Filtro }) {
         {visibles.map((c) => (
           <div key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-2 py-3.5">
             <Link href={`/admin/socio/${c.asociadoId}`} className="flex min-w-0 flex-1 items-center gap-3">
-              <Avatar nombre={c.nombre} size={40} />
+              <AvatarSocio nombre={c.nombre} size={40} />
               <span className="min-w-0">
                 <span className="block truncate font-medium">{c.nombre}</span>
                 <span className="block text-xs text-muted">

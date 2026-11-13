@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
-import Avatar from "@/components/Avatar";
+import AvatarSocio from "@/components/AvatarSocio";
 import BotonEnvio from "@/components/BotonEnvio";
 import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
@@ -59,7 +59,7 @@ async function Contenido() {
         {lista.map((p) => (
           <section key={p.id} className="space-y-3 rounded-[28px] bg-card p-4">
             <Link href={`/admin/socio/${p.id}`} className="flex items-center gap-3">
-              <Avatar nombre={p.nombre} size={40} />
+              <AvatarSocio nombre={p.nombre} size={40} />
               <p className="font-semibold">{p.nombre}</p>
             </Link>
             <div className="divide-y divide-card-border/60">

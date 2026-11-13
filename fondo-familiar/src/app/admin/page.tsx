@@ -3,6 +3,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { ArrowRight, Camera, CalendarClock, Gavel, Landmark, Receipt, Repeat, Users } from "lucide-react";
 import Avatar from "@/components/Avatar";
+import CampanaAvisos from "@/components/CampanaAvisos";
+import AvatarSocio from "@/components/AvatarSocio";
 import Tutorial from "@/components/Tutorial";
 import { tutorialVisto } from "@/lib/tutorial-visto";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -37,7 +39,10 @@ async function AdminContenido() {
             <h1 className="text-lg font-bold leading-tight">{perfil.nombre.split(" ")[0]}</h1>
           </div>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <CampanaAvisos href="/avisos" />
+          <ThemeToggle />
+        </div>
       </header>
 
       {/* Cifra principal: lo que hay para prestar */}
@@ -162,7 +167,7 @@ async function AdminContenido() {
             const debe = c.cuentas.interesPendiente + c.cuentas.moraPendiente;
             return (
               <Link key={c.id} href={`/admin/socio/${c.asociadoId}`} className="flex items-center gap-4 px-2 py-3.5">
-                <Avatar nombre={c.nombre} size={44} />
+                <AvatarSocio nombre={c.nombre} size={44} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{c.nombre}</p>
                   <p className="text-xs text-muted">Interés mensual {pesos(c.cuentas.interesMensual)}</p>

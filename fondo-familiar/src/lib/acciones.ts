@@ -944,3 +944,11 @@ export async function eliminarRecuerdo(id: string): Promise<EstadoForm> {
   revalidatePath("/recuerdos", "layout");
   return { ok: true };
 }
+
+// Marca como leídos todos los avisos de la bandeja del usuario.
+export async function marcarAvisosLeidos() {
+  const perfil = await requerirPerfil();
+  const supabase = await crearClienteServidor();
+  await supabase.from("avisos").update({ leido: true }).eq("asociado_id", perfil.id).eq("leido", false);
+  revalidatePath("/", "layout");
+}

@@ -1,6 +1,6 @@
 # Especificaciones de uso — Fondo de Ahorro Familiar
 
-> Estado: v2 (actualizada al cierre de la sesión 7, 2026-10-29). Base: estatutos + respuestas del usuario + lo construido. Los puntos marcados ⚠️ son supuestos por confirmar.
+> Estado: v3 (actualizada el 2026-11-13, sesión 10). Base: estatutos + respuestas del usuario + lo construido. Los puntos marcados ⚠️ son supuestos por confirmar.
 
 ## 1. Propósito
 Aplicación web privada (Art. 7 del estatuto) donde cada asociado verifica sus aportes, préstamos, estados de cuenta y demás información. **Solo registra y consulta; no mueve dinero.** El dinero está en una cuenta Banco NU administrada por el Tesorero.
@@ -30,7 +30,8 @@ Aplicación web privada (Art. 7 del estatuto) donde cada asociado verifica sus a
 - Solo a asociados al día y sin deudas con el fondo (Art. 12).
 - Solicitud por la app; si no hay caja, se atiende por **orden de radicación** (cola).
 - Aprobación: solo los 3 directivos votan.
-- Interés: 4% mensual **fijo sobre el capital inicial** (ej.: préstamo de $100.000 → $4.000 cada mes). La cuota de interés no baja ni varía hasta cancelar todo el capital, aunque haya abonos (Art. 14 y 15).
+- Interés: 4% mensual **fijo sobre el capital inicial** (ej.: préstamo de $100.000 → $4.000 cada mes). La cuota de interés no baja ni varía hasta cancelar todo el capital, aunque haya abonos (Art. 14 y 15). **Se paga cada mes el mismo día en que se desembolsó el préstamo** (el día en que se habilita), no en la reunión.
+- **4x1000 (GMF)**: el banco cobra 0,4 % al desembolsar y la cuenta NU no es exenta; el deudor lo reembolsa **una sola vez, con su primera cuota de interés** (primero se cubre el 4x1000 y el resto es interés). Aparece como deuda del deudor y en la contabilidad es un movimiento aparte: **no suma a la caja prestable ni a las utilidades**. Los 6 préstamos cargados del Excel no lo pagan.
 - Plazo indefinido: si tarda 2 años en pagar el capital, paga el interés fijo los 24 meses.
 - Nuevo préstamo solo tras cancelar el anterior por completo.
 - Pago del préstamo desde la app (Registrar pago → Préstamo): interés del mes, abono a capital por cualquier valor o pago total, siempre con comprobante; lo aprueba un administrador y no se puede deshacer. Para cancelar todo el capital hay que pagar también el interés pendiente.
@@ -52,7 +53,9 @@ Aplicación web privada (Art. 7 del estatuto) donde cada asociado verifica sus a
 - Ver sus préstamos: capital, intereses causados y pagados, mora, saldo.
 - Radicar solicitud de préstamo (con opción de externo apadrinado) y ver su estado/posición en la cola.
 - Ver próximas fechas (cuotas, reunión, su turno de cadena) en calendario.
-- Recibir avisos por correo.
+- Recibir **avisos** por correo, por notificación push en el celular (opcional) y en la **campana** de la app (funciona en cualquier dispositivo).
+- **Foto de perfil** opcional: se ofrece en el primer ingreso (se puede omitir) y se cambia en Perfil; se comprime sola.
+- **Recuerdos**: en cada reunión ya realizada puede subir hasta 5 fotos (se comprimen automáticamente) y ver la galería de todos; cada quien borra las suyas y los administradores pueden borrar cualquiera.
 
 ### Tesorero y Contador
 - **Pagos del mes** (botón prioritario, con contador de pendientes): lista por mes de quién envió comprobantes y quién no; ver cada captura en ventana flotante; **Aprobar / Rechazar (con motivo) / Deshacer**; subir el comprobante por un asociado que no supo hacerlo (queda anotado quién lo cargó); **copiar lista de pendientes** para pegarla en el grupo de WhatsApp.
@@ -77,11 +80,14 @@ Aplicación web privada (Art. 7 del estatuto) donde cada asociado verifica sus a
 4. **Reunión mensual**: registro de asistencia → multas → resultados de juegos.
 5. **Cierre mensual**: carga de captura NU + conciliación contra saldo calculado por la app.
 
-## 6. Notificaciones (correo) — pendiente de construir
-- Recordatorio de cuota próxima y de mora.
-- Solicitud de préstamo recibida / aprobada / rechazada.
-- Nueva solicitud pendiente de voto (a directivos).
-- Recordatorio de reunión.
+## 6. Notificaciones (correo, push y bandeja) — construidas
+Cada aviso se guarda en la bandeja (campana) y además se envía por correo y/o push según corresponda.
+- Cuota: 3 días antes, el día de la reunión y mora semanal.
+- Interés del préstamo: 3 días antes, el día de pago mensual y mora semanal (incluye el 4x1000 en la primera cuota).
+- Solicitud de préstamo aprobada / rechazada, desembolso y pago aprobado / rechazado (al deudor).
+- Nueva solicitud, pago por revisar y resumen de lo que vence hoy (a directivos).
+- «Hay $X disponibles para prestar»: una vez al día a todos, si hay caja.
+- Push: en iPhone solo funciona con la app instalada desde «Agregar a pantalla de inicio»; en cualquier caso el aviso queda en la campana.
 
 ## 7. Reportes
 - Estado de cuenta por asociado (descargable PDF).
@@ -91,10 +97,10 @@ Aplicación web privada (Art. 7 del estatuto) donde cada asociado verifica sus a
 - Conciliación mensual vs. captura NU.
 
 ## 8. Experiencia de uso (diseño)
-- **Mobile-first**, uso principal desde celular; instalable como PWA.
-- Referencia visual (carpeta `Instrucciones/Pantallazos`): tema oscuro, tarjetas redondeadas, barra de navegación inferior flotante (Inicio · Buscar · Calendario · Perfil), calendario mensual con puntos en fechas de eventos, resumen grande de totales.
+- **Mobile-first**, uso principal desde celular; instalable como PWA (ícono y pantalla de arranque propios, también en iPhone).
+- Referencia visual (carpeta `Instrucciones/Pantallazos`): tema oscuro, tarjetas redondeadas, barra de navegación inferior (Inicio · Préstamos · Calendario · Recuerdos · Perfil), calendario mensual con puntos en fechas de eventos, resumen grande de totales.
 - Pantallas asociado: Inicio (botón "Pagar y subir comprobantes", resumen, historial de cuotas) · Préstamos · Calendario (próxima reunión, 19 meses con tu cuota y turno de cadena) · Perfil (cuenta de pagos, tema) · Pagar · Confirmar pagos (solo con turno).
-- Tema oscuro por defecto con botón para claro; acento morado. Los administradores eligen panel (Mi cuenta / Administración) tras iniciar sesión.
+- Identidad visual «Brote F» (carpeta `Instrucciones/Logo`): tema oscuro por defecto con botón para claro; acento verde #2BD9A0 (oscuro) / #0B7A57 (claro) y ámbar #FFB547 para pendientes y avisos. Los administradores eligen panel (Mi cuenta / Administración) tras iniciar sesión.
 - Los botones de guardado se bloquean mientras se procesan y la pantalla se actualiza al instante (asistencia, aprobaciones, confirmaciones) para evitar dobles clics.
 
 ## 9. Datos iniciales
@@ -111,6 +117,7 @@ Aplicación web privada (Art. 7 del estatuto) donde cada asociado verifica sus a
 
 2. **Usura**: 4% mensual fijo e interés sobre interés pueden chocar con la tasa de usura (decisión de reglamento).
 3. ⚠️ Supuestos de cálculo vigentes: ahorro acumulado = ahorro de cuotas pagadas + aporte inicial; caja prestable = ahorro pagado + aporte inicial + intereses/abonos − desembolsos − aprobados sin desembolsar (cadena y juegos no se prestan); los premios de juegos se pagan en la misma reunión; ausentes fuera de Pasto no pagan multa; el recaudo de juegos no descuenta la parte de los ausentes (el admin ajusta el monto).
+4. **4x1000**: se cobra 0,4 % del desembolso al deudor en su primera cuota (cuenta NU no exenta; confirmado).
 
 Resuelto: cadena (quien recibe no paga su parte de cadena $40.000, pero sí ahorro $40.000 y juegos $3.000; recibe 18 × $40.000 = $720.000); utilidades se reparten en partes iguales; fin del ciclo (ver §13). Sesión 2: interés fijo sobre capital inicial; mayoría 2 de 3; los 19 incluyen a los admins; fecha límite = día de la reunión; externos sin acceso.
 

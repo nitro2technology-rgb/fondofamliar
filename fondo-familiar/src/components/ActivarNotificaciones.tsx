@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Bell, BellOff } from "lucide-react";
 import { guardarSuscripcionPush, quitarSuscripcionPush } from "@/lib/acciones";
 
-type Estado = "cargando" | "no-soportado" | "bloqueado" | "inactivo" | "activo";
+type Estado = "cargando" | "sin-llave" | "instalar" | "no-soportado" | "bloqueado" | "inactivo" | "activo";
 
 const LLAVE = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 
@@ -14,7 +14,12 @@ function aBytes(base64: string) {
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 }
 
-const esIOS = () => typeof navigator !== "undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent);
+const esIOS = () =>
+  typeof navigator !== "undefined" && (/iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+// ¿Está abierta como app instalada (desde el ícono de inicio)? En iPhone las notificaciones solo funcionan así.
+const esInstalada = () =>
+  typeof window !== "undefined" &&
+  (window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true);
 
 // Activa las notificaciones push del celular. `compacto` = aviso para Inicio (se oculta si ya está activo).
 export default function ActivarNotificaciones({ compacto = false }: { compacto?: boolean }) {
@@ -24,8 +29,14 @@ export default function ActivarNotificaciones({ compacto = false }: { compacto?:
 
   useEffect(() => {
     (async () => {
-      if (!LLAVE || !("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
-        setEstado("no-soportado");
+      if (!LLAVE) {
+        setEstado("sin-llave");
+        return;
+      }
+      const soportado = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+      if (!soportado) {
+        // En iPhone el soporte aparece solo cuando la app está instalada en la pantalla de inicio.
+        setEstado(esIOS() && !esInstalada() ? "instalar" : "no-soportado");
         return;
       }
       try {
@@ -83,14 +94,16 @@ export default function ActivarNotificaciones({ compacto = false }: { compacto?:
   }
 
   if (estado === "cargando") return null;
-  if (compacto && (estado === "activo" || estado === "bloqueado" || (estado === "no-soportado" && !esIOS()))) return null;
+  if (compacto && estado !== "inactivo" && estado !== "instalar") return null;
 
-  if (estado === "no-soportado") {
+  if (estado === "instalar" || estado === "no-soportado" || estado === "sin-llave") {
     return (
       <p className="rounded-[28px] bg-card p-4 text-sm text-muted">
-        {esIOS()
-          ? "Para recibir notificaciones en iPhone, instala la app: toca Compartir y luego «Agregar a pantalla de inicio». Ábrela desde el ícono y actívalas aquí."
-          : "Este navegador no permite notificaciones. Prueba con Chrome o instala la app en tu celular."}
+        {estado === "instalar"
+          ? "Para recibir notificaciones en iPhone, abre la app desde el ícono de tu pantalla de inicio (Compartir → «Agregar a pantalla de inicio») y actívalas aquí."
+          : estado === "sin-llave"
+            ? "Las notificaciones todavía no están configuradas en el servidor. Mientras tanto, verás todos tus avisos aquí, en la campana."
+            : "Este navegador no permite notificaciones del celular. No te pierdes nada: tus avisos aparecen aquí, en la campana de la app."}
       </p>
     );
   }

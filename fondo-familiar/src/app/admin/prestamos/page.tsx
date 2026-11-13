@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { Check, ThumbsDown, ThumbsUp, X } from "lucide-react";
-import Avatar from "@/components/Avatar";
+import AvatarSocio from "@/components/AvatarSocio";
 import BotonEnvio from "@/components/BotonEnvio";
 import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
@@ -136,7 +136,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
                   <div className="min-w-0 flex-1 space-y-3 rounded-[28px] bg-card p-4">
                     <div className="flex items-start justify-between gap-2">
                       <Link href={`/admin/socio/${x.asociado_id}`} className="flex min-w-0 items-center gap-2.5">
-                        <Avatar nombre={nombre} size={36} />
+                        <AvatarSocio nombre={nombre} size={36} />
                         <span className="min-w-0">
                           <span className="block truncate font-semibold">{nombre}</span>
                           <span className="block text-xs text-muted">
@@ -240,7 +240,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
               <div key={x.id} className="space-y-3 rounded-[28px] bg-card p-4">
                 <div className="flex items-center justify-between gap-2">
                   <Link href={`/admin/socio/${x.asociado_id}`} className="flex min-w-0 items-center gap-2.5">
-                    <Avatar nombre={nombre} size={40} />
+                    <AvatarSocio nombre={nombre} size={40} />
                     <span className="min-w-0">
                       <span className="block truncate font-semibold">{nombre}</span>
                       <span className="block text-xs text-muted">Desde {x.desembolsado_en ? fechaCorta(x.desembolsado_en) : "—"}</span>
@@ -278,7 +278,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
           <div className="divide-y divide-card-border/60 rounded-[28px] bg-card px-2">
             {(historial ?? []).map((x) => (
               <Link key={x.id} href={`/admin/socio/${x.asociado_id}`} className="flex items-center gap-3 px-2 py-3.5">
-                <Avatar nombre={nombreDe(x)} size={40} />
+                <AvatarSocio nombre={nombreDe(x)} size={40} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{nombreDe(x)}</p>
                   <p className="text-xs text-muted">{fechaCorta(x.radicado_en.slice(0, 10))}</p>

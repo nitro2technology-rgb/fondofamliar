@@ -59,12 +59,22 @@ export const PASOS_ASOCIADO: PasoTutorial[] = [
   {
     objetivo: ["nav"],
     titulo: "Menú inferior",
-    texto: "Inicio, Préstamos (tu solicitud, cola y movimientos), Calendario (fechas y turno de la cadena) y Perfil.",
+    texto: "Inicio, Préstamos (tu solicitud, cola y movimientos), Calendario (fechas y turno de la cadena), Recuerdos y Perfil.",
+  },
+  {
+    objetivo: ["avisos"],
+    titulo: "Tus avisos",
+    texto: "La campana junta todo lo que te avisamos: cuándo te toca pagar, tu préstamo y cuando hay dinero disponible. Si activas las notificaciones, también te llegan al celular.",
+  },
+  {
+    objetivo: ["nav-recuerdos"],
+    titulo: "Recuerdos",
+    texto: "En cada reunión puedes subir hasta 5 fotos y ver las de todos. Se comprimen solas, así que no te preocupes por el peso.",
   },
   {
     objetivo: ["nav-perfil"],
     titulo: "Tu perfil",
-    texto: "Aquí guardas tu cuenta o llave para que te hagan pagos, cambias entre tema claro y oscuro y puedes volver a ver este tutorial.",
+    texto: "Aquí pones tu foto (opcional), guardas tu cuenta o llave para que te hagan pagos, activas las notificaciones, cambias entre tema claro y oscuro y puedes volver a ver este tutorial.",
   },
   {
     titulo: "¡Listo!",

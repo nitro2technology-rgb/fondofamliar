@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import Avatar from "@/components/Avatar";
+import AvatarSocio from "@/components/AvatarSocio";
 import BotonEnvio from "@/components/BotonEnvio";
 import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
@@ -86,7 +86,7 @@ function Lista({ titulo, vacio, filas }: { titulo: string; vacio: string; filas:
           {filas.map((m) => (
             <div key={m.id} className="flex items-center gap-3 px-2 py-3">
               <Link href={`/admin/socio/${m.asociado_id}`} className="flex min-w-0 flex-1 items-center gap-3">
-                <Avatar nombre={m.nombre} size={40} />
+                <AvatarSocio nombre={m.nombre} size={40} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{m.nombre}</p>
                   <p className="truncate text-xs text-muted">

@@ -20,12 +20,14 @@ type Persona = { id: string; nombre: string; ciudad: string | null };
 export default function FormularioAsistencia({
   reunionId,
   personas,
+  fotos,
   guardados,
   multaTarde,
   multaAusencia,
 }: {
   reunionId: string;
   personas: Persona[];
+  fotos: Record<string, string>;
   guardados: Record<string, string>;
   multaTarde: number;
   multaAusencia: number;
@@ -68,7 +70,7 @@ export default function FormularioAsistencia({
         return (
           <div key={p.id} className="space-y-3 rounded-[28px] bg-card p-4">
             <div className="flex items-center gap-3">
-              <Avatar nombre={p.nombre} size={36} />
+              <Avatar nombre={p.nombre} size={36} foto={fotos[p.id]} />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold leading-tight">{p.nombre}</p>
                 {p.ciudad && <p className="text-xs text-muted">{p.ciudad}</p>}

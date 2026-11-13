@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, Clock, TriangleAlert } from "lucide-react";
-import Avatar from "@/components/Avatar";
+import AvatarSocio from "@/components/AvatarSocio";
 import SelectorMes from "@/components/SelectorMes";
 import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
@@ -132,7 +132,7 @@ function Fila({
   const Icono = estado === "pagada" ? Check : estado === "mora" ? TriangleAlert : Clock;
   return (
     <Link href={`/admin/socio/${c.asociado_id}`} className="flex items-center gap-3 px-2 py-3">
-      <Avatar nombre={c.nombre} size={40} />
+      <AvatarSocio nombre={c.nombre} size={40} />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{c.nombre}</p>
         <p className="text-xs text-muted">

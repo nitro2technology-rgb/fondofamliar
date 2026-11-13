@@ -6,8 +6,9 @@ import { guardarJuegos, marcarMultaPagada } from "@/lib/acciones";
 import { fechaCorta, hoyColombia, mesLargo, pesos } from "@/lib/format";
 import BotonEnvio from "@/components/BotonEnvio";
 import FormularioAsistencia from "./FormularioAsistencia";
+import { fotosPerfil } from "@/lib/fotos-servidor";
 import SelectorMes from "@/components/SelectorMes";
-import Avatar from "@/components/Avatar";
+import AvatarSocio from "@/components/AvatarSocio";
 
 export default function Asistencia({ searchParams }: PageProps<"/admin/asistencia">) {
   return (
@@ -71,6 +72,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/asi
       <p className="text-sm text-muted">Reunión del {fechaCorta(elegida.fecha)}. Retraso y ausencia generan multa automática.</p>
 
       <FormularioAsistencia
+        fotos={Object.fromEntries(await fotosPerfil((perfiles ?? []).map((x) => x.id)))}
         key={elegida.id}
         reunionId={elegida.id}
         personas={perfiles ?? []}
@@ -87,7 +89,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/asi
               const nombre = (m.perfiles as unknown as { nombre: string } | null)?.nombre ?? "";
               return (
                 <div key={m.id} className="flex items-center gap-3 px-2 py-3">
-                  <Avatar nombre={nombre} size={36} />
+                  <AvatarSocio nombre={nombre} size={36} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{nombre}</p>
                     <p className="text-xs text-muted">{m.motivo} · {pesos(Number(m.monto))}</p>

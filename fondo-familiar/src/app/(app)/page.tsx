@@ -1,4 +1,5 @@
 import Avatar from "@/components/Avatar";
+import CampanaAvisos from "@/components/CampanaAvisos";
 import AvisoFoto from "@/components/AvisoFoto";
 import { fotosPerfil } from "@/lib/fotos-servidor";
 import Link from "next/link";
@@ -61,7 +62,10 @@ async function InicioContenido() {
             <h1 className="text-lg font-bold leading-tight">{perfil.nombre.split(" ")[0]}</h1>
           </div>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <CampanaAvisos />
+          <ThemeToggle />
+        </div>
       </header>
 
       {/* Cifra principal */}

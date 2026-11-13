@@ -132,5 +132,8 @@ export async function GET(request: Request) {
     });
   }
 
+  // Limpieza: los avisos de la bandeja se conservan 60 días.
+  await db.from("avisos").delete().lt("creado_en", new Date(Date.now() - 60 * 86_400_000).toISOString());
+
   return NextResponse.json({ ok: true, hoy, resumen });
 }

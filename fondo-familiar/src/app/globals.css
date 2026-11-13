@@ -49,6 +49,9 @@
 }
 
 body {
+  /* Con la app instalada en iPhone la barra de estado queda encima del contenido: se deja ese espacio. */
+  padding-top: env(safe-area-inset-top);
+  -webkit-text-size-adjust: 100%;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
@@ -74,4 +77,13 @@ input[type="file"]::file-selector-button {
 }
 input[type="file"]:hover::file-selector-button {
   opacity: 0.85;
+}
+
+/* iPhone hace zoom al tocar un campo con letra menor a 16 px: en pantallas pequeñas se fija en 16 px. */
+@media (max-width: 640px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
