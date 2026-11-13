@@ -95,7 +95,7 @@ export default function PanelAvisos({ avisos: inicial, sinLeer: sinLeerInicial, 
       </button>
 
       {abierto && (
-        <div className="fixed inset-x-4 top-[calc(env(safe-area-inset-top)+4.75rem)] z-40 mx-auto max-w-sm overflow-hidden rounded-[28px] border border-card-border bg-card shadow-2xl">
+        <div className="fixed inset-x-4 top-[calc(env(safe-area-inset-top)+8.75rem)] z-40 mx-auto max-w-sm overflow-hidden rounded-[28px] border border-card-border bg-card shadow-2xl">
           <div className="flex items-center justify-between px-5 pb-2 pt-4">
             <p className="font-bold">Notificaciones</p>
             <button type="button" onClick={() => setAbierto(false)} aria-label="Cerrar" className="flex size-8 items-center justify-center rounded-full bg-background text-muted">

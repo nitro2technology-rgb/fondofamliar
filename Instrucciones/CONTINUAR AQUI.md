@@ -462,3 +462,6 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 
 ## Sesión 10 (cont. 9) — Menú al borde en Safari instalada
 - Diagnóstico en iPhone: en Safari (app instalada) `innerHeight` = 797 y la pantalla 844 (faltan 47 px = barra de estado); en Chrome coincide (844). `Cascaron.tsx` ahora es cliente y, con la app instalada y en vertical, usa `max(innerHeight, screen.height)` como alto. «Información de pantalla» en Perfil se conserva para diagnóstico.
+
+## Sesión 10 (cont. 10) — Menú arriba
+- En Safari con la app instalada la ventana mide 47 px menos que la pantalla (franja inferior fuera de la página, no se puede dibujar). El intento de forzar el alto real recortó el menú. Decisión del usuario: el menú de navegación va **arriba**, bajo la barra de estado (`Cascaron.tsx`, `BottomNav.tsx`, `AdminNav.tsx`); el panel de la campana baja para no taparlo.
