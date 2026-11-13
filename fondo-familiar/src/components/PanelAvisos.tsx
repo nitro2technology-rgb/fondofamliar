@@ -69,7 +69,7 @@ export default function PanelAvisos({ avisos, sinLeer, verTodos }: { avisos: Avi
       </button>
 
       {abierto && (
-        <div className="absolute right-0 top-14 z-40 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-[28px] border border-card-border bg-card shadow-2xl">
+        <div className="fixed inset-x-4 top-[calc(env(safe-area-inset-top)+4.75rem)] z-40 mx-auto max-w-sm overflow-hidden rounded-[28px] border border-card-border bg-card shadow-2xl">
           <div className="flex items-center justify-between px-5 pb-2 pt-4">
             <p className="font-bold">Notificaciones</p>
             <button type="button" onClick={() => setAbierto(false)} aria-label="Cerrar" className="flex size-8 items-center justify-center rounded-full bg-background text-muted">

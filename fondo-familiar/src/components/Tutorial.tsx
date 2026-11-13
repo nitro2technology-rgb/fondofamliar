@@ -19,6 +19,11 @@ function buscar(objetivo?: string[]): HTMLElement | null {
   return null;
 }
 
+function enFijo(el: HTMLElement | null) {
+  for (let n = el; n; n = n.parentElement) if (getComputedStyle(n).position === "fixed") return true;
+  return false;
+}
+
 // Recorrido guiado sobre la pantalla: resalta cada elemento y muestra una burbuja que explica qué hacer ahí.
 // Se abre solo la primera vez (`abrirAlInicio`) o con ?tutorial=1 (enlace de Perfil / Más).
 export default function Tutorial({ panel, abrirAlInicio = false }: { panel: "asociado" | "admin"; abrirAlInicio?: boolean }) {
@@ -31,6 +36,15 @@ export default function Tutorial({ panel, abrirAlInicio = false }: { panel: "aso
   const [i, setI] = useState(0);
   const [caja, setCaja] = useState<Caja | null>(null);
   const [vp, setVp] = useState({ w: 0, h: 0 });
+  const [hb, setHb] = useState(0);
+  // Altura real de la burbuja, para ubicarla sin que se salga de la pantalla.
+  const refBurbuja = useCallback((n: HTMLDivElement | null) => {
+    if (!n) return;
+    const ro = new ResizeObserver(() => setHb(n.offsetHeight));
+    ro.observe(n);
+    setHb(n.offsetHeight);
+    return () => ro.disconnect();
+  }, []);
   const abierto = (abrirAlInicio || pedido) && !cerrado;
   const paso = pasos[i];
 
@@ -41,7 +55,7 @@ export default function Tutorial({ panel, abrirAlInicio = false }: { panel: "aso
     const r = el.getBoundingClientRect();
     // Se recorta a la zona visible para elementos más altos que la pantalla.
     const top = Math.max(r.top, 0);
-    const bottom = Math.min(r.bottom, window.innerHeight);
+    const bottom = Math.min(r.bottom, window.innerHeight, top + window.innerHeight * 0.5);
     setCaja({ top, left: r.left, width: r.width, height: Math.max(bottom - top, 0) });
   }, [paso]);
 
@@ -49,7 +63,11 @@ export default function Tutorial({ panel, abrirAlInicio = false }: { panel: "aso
   useEffect(() => {
     if (!abierto) return;
     const el = buscar(paso.objetivo);
-    el?.scrollIntoView({ block: "center", behavior: "auto" });
+    if (el && !enFijo(el)) {
+      // El elemento sube a la parte alta para dejar abajo todo el espacio a la burbuja.
+      el.scrollIntoView({ block: "start", behavior: "smooth" });
+      window.scrollBy({ top: -72, behavior: "smooth" });
+    }
     const t = setTimeout(medir, 60);
     return () => clearTimeout(t);
   }, [abierto, paso, medir]);
@@ -78,22 +96,27 @@ export default function Tutorial({ panel, abrirAlInicio = false }: { panel: "aso
   const relleno = 8;
   const foco = caja && caja.height > 0 ? { top: caja.top - relleno, left: caja.left - relleno, width: caja.width + relleno * 2, height: caja.height + relleno * 2 } : null;
 
-  // Burbuja: del lado con más espacio; si el elemento ocupa casi toda la pantalla, abajo fija.
-  let estiloBurbuja: React.CSSProperties = { width: ancho, left: (vp.w - ancho) / 2, top: "50%", transform: "translateY(-50%)" };
+  // Burbuja: siempre dentro de la pantalla (con desplazamiento interno si el texto es largo).
+  const minTop = 56;
+  const maxBottom = vp.h - 24;
+  const maxH = maxBottom - minTop;
+  const alto = Math.min(hb, maxH);
+  let estiloBurbuja: React.CSSProperties = { width: ancho, left: (vp.w - ancho) / 2, top: minTop + (maxH - alto) / 2 };
   let flecha: { lado: "arriba" | "abajo"; x: number } | null = null;
   if (foco) {
-    const espacioAbajo = vp.h - (foco.top + foco.height);
-    const espacioArriba = foco.top;
+    const espacioAbajo = maxBottom - (foco.top + foco.height) - 14;
+    const espacioArriba = foco.top - minTop - 14;
     const centro = foco.left + foco.width / 2;
     const left = Math.min(Math.max(centro - ancho / 2, MARGEN), vp.w - ancho - MARGEN);
-    if (Math.max(espacioAbajo, espacioArriba) < 190) {
-      estiloBurbuja = { width: ancho, left, bottom: MARGEN };
-    } else if (espacioAbajo >= espacioArriba) {
+    const x = Math.min(Math.max(centro - left, 24), ancho - 24);
+    if (espacioAbajo >= alto) {
       estiloBurbuja = { width: ancho, left, top: foco.top + foco.height + 14 };
-      flecha = { lado: "arriba", x: Math.min(Math.max(centro - left, 24), ancho - 24) };
+      flecha = { lado: "arriba", x };
+    } else if (espacioArriba >= alto) {
+      estiloBurbuja = { width: ancho, left, top: foco.top - 14 - alto };
+      flecha = { lado: "abajo", x };
     } else {
-      estiloBurbuja = { width: ancho, left, bottom: vp.h - foco.top + 14 };
-      flecha = { lado: "abajo", x: Math.min(Math.max(centro - left, 24), ancho - 24) };
+      estiloBurbuja = { width: ancho, left, top: maxBottom - alto };
     }
   }
 
@@ -108,7 +131,7 @@ export default function Tutorial({ panel, abrirAlInicio = false }: { panel: "aso
         />
       )}
 
-      <div className="absolute rounded-3xl bg-card p-5 text-foreground shadow-2xl ring-1 ring-card-border" style={estiloBurbuja}>
+      <div ref={refBurbuja} className="absolute overflow-y-auto rounded-3xl bg-card p-5 text-foreground shadow-2xl ring-1 ring-card-border" style={{ ...estiloBurbuja, maxHeight: maxH }}>
         {flecha && (
           <span
             className={`absolute size-4 rotate-45 bg-card ring-1 ring-card-border ${flecha.lado === "arriba" ? "-top-2" : "-bottom-2"}`}
