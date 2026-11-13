@@ -455,3 +455,7 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - **Pago en efectivo / de varios** (Admin > Pagos > Cuota > «Registrar pago en efectivo / de varios»): un solo pantallazo se copia en cada asociado marcado, con descripción libre (por defecto «Pago dividido en N») y quién recolectó (cualquier asociado). Cada pago queda pendiente de aprobar y muestra «Efectivo recolectado por X · descripción». Migración **0020_pago_grupal.sql** (`pagos_reportados.descripcion`, `recolector_id`): falta ejecutarla.
 - **Multas en el pago**: en cada tarjeta de Admin > Pagos aparece «Debe la multa» con el botón «Venía en este pago» (la marca cobrada y avisa al asociado) o se deja pendiente. En Admin > Multas las pendientes dicen «Debe la multa».
 - Pendiente: pagos de préstamo en efectivo/grupales (hoy se suben uno por uno con `SubirPagoPrestamoAdmin`).
+
+## Sesión 10 (cont. 8) — 4x1000 en préstamos vigentes y menú al borde
+- Migración **0021_4x1000_prestamos_vigentes.sql**: marca `cobrar_4x1000 = true` en los préstamos vigentes que no lo tenían (los del Excel); el 4x1000 aparece en su primera cuota y se reembolsa una sola vez con el primer interés. Falta ejecutarla.
+- Menú inferior: relleno inferior reducido a `max(0, safe-area - 1.75rem)` (≈ 6 pt en iPhone con barra de inicio) en `BottomNav.tsx` y `AdminNav.tsx`; el fondo de la barra llega al borde.
