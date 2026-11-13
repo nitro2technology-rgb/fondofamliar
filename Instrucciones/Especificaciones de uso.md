@@ -116,9 +116,9 @@ Cada aviso se guarda en la bandeja (campana) y además se envía por correo y/o 
 - Votación de los asociados (solo directivos votan).
 
 ## 11. Puntos por confirmar
-1. **Mora (Art. 16)** — PENDIENTE de confirmar con los administradores. El estatuto no define tasa ni periodicidad. **Se implementa provisionalmente** así: el interés mensual no pagado se suma a lo adeudado y genera 4% adicional por cada mes de atraso; la regla queda parametrizable para cambiarla sin tocar código. ⚠️ Revisar también el riesgo de usura.
+1. **Mora (Art. 16)** — PENDIENTE de confirmar con los administradores. El estatuto no define tasa ni periodicidad. **Se implementa provisionalmente** así: el interés mensual no pagado se suma a lo adeudado y genera 4% adicional por cada mes de atraso; la regla queda parametrizable para cambiarla sin tocar código.
 
-2. **Usura**: 4% mensual fijo e interés sobre interés pueden chocar con la tasa de usura (decisión de reglamento).
+2. **Usura**: no aplica (decisión del 2026-11-13): el fondo es un acuerdo familiar, no una entidad financiera, y el 4 % mensual se mantiene.
 3. ⚠️ Supuestos de cálculo vigentes: ahorro acumulado = ahorro de cuotas pagadas + aporte inicial; caja prestable = ahorro pagado + aporte inicial + intereses/abonos − desembolsos − aprobados sin desembolsar (cadena y juegos no se prestan); los premios de juegos se pagan en la misma reunión; ausentes fuera de Pasto no pagan multa; el recaudo de juegos no descuenta la parte de los ausentes (el admin ajusta el monto).
 4. **4x1000**: se cobra 0,4 % del desembolso al deudor en su primera cuota (cuenta NU no exenta; confirmado).
 

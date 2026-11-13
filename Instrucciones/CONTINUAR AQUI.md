@@ -468,3 +468,6 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 
 ## Sesión 10 (cont. 11) — Menú superior translúcido
 - Menú arriba, translúcido (`bg-background/30` + desenfoque) y superpuesto: la zona de contenido ocupa toda la pantalla y se desplaza debajo. El degradado verde pasó a `Cascaron.tsx` (todas las pantallas, detrás de la barra de estado y del menú); se quitó de Inicio y Resumen admin. El relleno superior del contenido lo ponen `(app)/layout.tsx` y `admin/layout.tsx`.
+
+## 2026-11-13 — Lanzamiento a los asociados
+- Excel y 4x1000 confirmados por el usuario; respaldo funciona. Usura descartada (el fondo no es una entidad financiera). Pendiente de respuesta de los directivos: mora (fórmula), caja prestable (ahorro + inicial + intereses) y préstamos simultáneos (hoy: uno a la vez). Pendiente: confirmar correo del respaldo el primer domingo.

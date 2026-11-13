@@ -83,7 +83,7 @@ Reglas de integridad: montos en pesos enteros (COP, sin decimales); movimientos 
 | Pausa de Supabase gratis por inactividad | Cron diario de Vercel ya implementado (`/api/mantener-activo`) y respaldo semanal construido |
 | Variables y despliegue en Vercel | `SUPABASE_SERVICE_ROLE_KEY` es tipo Sensitive (no se vuelve a ver); cada cambio de variable exige Redeploy; ejecutar las migraciones SQL **antes** de usar el despliegue que las necesita |
 | Migraciones aplicadas al proyecto equivocado de Supabase | Verificar que el SQL Editor esté en el proyecto de la URL de `.env.local` |
-| Interés sobre interés y 4% mensual pueden chocar con la tasa de usura en Colombia | Dejar la regla parametrizable; consultar a los directivos (es una decisión de reglamento, no técnica) |
+| Tasa de usura | No aplica: el fondo es familiar, no financiero (decisión 2026-11-13) |
 | Reglas ambiguas del estatuto | Lista de puntos por confirmar en `Especificaciones de uso.md` §11 |
 | Plazo de 1 mes | Entregar por fases (ver §8) |
 
