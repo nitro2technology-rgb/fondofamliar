@@ -8,7 +8,16 @@ import SelectorArchivo from "@/components/SelectorArchivo";
 const campo =
   "w-full rounded-xl border border-card-border bg-background px-3 py-2.5 text-sm outline-none focus:border-accent";
 
-type Cifras = { saldoCapital: number; interesPendiente: number; moraPendiente: number; interesMensual: number };
+type Cifras = {
+  saldoCapital: number;
+  interesPendiente: number;
+  moraPendiente: number;
+  interesMensual: number;
+  interesProximo: number;
+  cuatroPorMil: number;
+  primeraCuotaPendiente: boolean;
+  diaDePago: string | null;
+};
 type Modo = "interes" | "abono" | "total";
 
 const pesos = (n: number) => `$${n.toLocaleString("es-CO")}`;
@@ -25,7 +34,7 @@ export default function FormularioPagoPrestamo({ c }: { c: Cifras }) {
   const ocupado = pendiente || comprimiendo;
 
   // Interés del mes: lo pendiente (o, si está al día, el siguiente) más la mora si la hay.
-  const interesMes = c.interesPendiente > 0 ? c.interesPendiente : c.interesMensual;
+  const interesMes = c.interesPendiente > 0 ? c.interesPendiente : c.interesProximo;
   const montos =
     modo === "interes"
       ? { interes: interesMes, mora: c.moraPendiente, capital: 0 }
@@ -58,9 +67,14 @@ export default function FormularioPagoPrestamo({ c }: { c: Cifras }) {
         <p className="text-sm text-muted">Saldo de tu préstamo</p>
         <p className="text-3xl font-extrabold tracking-tight">{pesos(c.saldoCapital)}</p>
         <p className="text-xs text-muted">
-          El interés ({pesos(c.interesMensual)} al mes) se paga cada reunión hasta cancelar todo el capital. Al cancelarlo por completo
-          quedas libre para pedir otro préstamo.
+          El interés ({pesos(c.interesMensual)} al mes) se paga cada mes{c.diaDePago ? `, el día ${c.diaDePago}` : ""}, hasta cancelar todo el
+          capital. Al cancelarlo por completo quedas libre para pedir otro préstamo.
         </p>
+        {c.primeraCuotaPendiente && (
+          <p className="text-xs text-muted">
+            La primera cuota incluye el 4x1000 de tu préstamo ({pesos(c.cuatroPorMil)}). Solo se paga esta vez.
+          </p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -114,7 +128,7 @@ export default function FormularioPagoPrestamo({ c }: { c: Cifras }) {
           <SelectorArchivo titulo="Subir comprobante" ayuda="Pantallazo del pago" />
         </label>
 
-        <button disabled={ocupado || total <= 0} className="w-full rounded-full bg-foreground py-4 font-semibold text-background disabled:opacity-50">
+        <button disabled={ocupado || total <= 0} className="w-full rounded-full bg-accent py-4 font-semibold text-accent-fg disabled:opacity-50">
           {comprimiendo ? "Comprimiendo…" : pendiente ? "Enviando…" : "Enviar pago del préstamo"}
         </button>
         {estado.ok && !ocupado && <p className="text-sm text-ok">Enviado. Un administrador lo revisará y se descontará de tu préstamo.</p>}

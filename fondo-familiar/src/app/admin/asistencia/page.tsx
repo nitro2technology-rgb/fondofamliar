@@ -97,7 +97,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/asi
                     <input type="hidden" name="pagada" value={m.pagada ? "no" : "si"} />
                     <BotonEnvio
                       enviando="…"
-                      className={`rounded-full px-4 py-2 text-xs font-semibold ${m.pagada ? "bg-ok/15 text-ok" : "bg-foreground text-background"}`}
+                      className={`rounded-full px-4 py-2 text-xs font-semibold ${m.pagada ? "bg-ok/15 text-ok" : "bg-accent text-accent-fg"}`}
                     >
                       {m.pagada ? "Cobrada ✓" : "Cobrar"}
                     </BotonEnvio>
@@ -121,7 +121,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/asi
             Guardado: premios {pesos(Number(juegos.premios))} · utilidad {pesos(Number(juegos.utilidad))}
           </p>
         )}
-        <BotonEnvio className="w-full rounded-full bg-foreground py-3.5 font-semibold text-background">Guardar juegos</BotonEnvio>
+        <BotonEnvio className="w-full rounded-full bg-accent py-3.5 font-semibold text-accent-fg">Guardar juegos</BotonEnvio>
       </form>
     </main>
   );

@@ -1,12 +1,16 @@
 import Link from "next/link";
+import Logo from "@/components/Logo";
 import FormularioLogin from "./FormularioLogin";
 
 export default function Login() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-4">
       <div className="mb-4 text-center">
-        <h1 className="text-5xl font-extrabold tracking-tight">Fondo Familiar</h1>
-        <p className="mt-3 text-muted">Ingresa con tu correo para ver tu estado de cuenta.</p>
+        <div className="flex justify-center">
+          <Logo altura={64} />
+        </div>
+        <h1 className="sr-only">Fondo Familiar</h1>
+        <p className="mt-5 text-muted">Ahorra, presta y crece en familia.</p>
       </div>
       <FormularioLogin />
       <Link

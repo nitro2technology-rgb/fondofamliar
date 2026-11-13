@@ -87,7 +87,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/cuo
       {deben.length > 0 && (
         <Link
           href={`/admin/pagos?tipo=cuota&periodo=${mes}&filtro=deben`}
-          className="flex items-center justify-center gap-2 rounded-full bg-foreground py-4 font-semibold text-background"
+          className="flex items-center justify-center gap-2 rounded-full bg-accent py-4 font-semibold text-accent-fg"
         >
           Cobrar a {deben.length} que deben
           <ArrowRight size={20} />
@@ -143,7 +143,7 @@ function Fila({
       </div>
       <span
         className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
-          estado === "pagada" ? "bg-accent-soft text-accent" : estado === "mora" ? "bg-danger/15 text-danger" : "bg-card-border text-muted"
+          estado === "pagada" ? "bg-accent-soft text-accent" : estado === "mora" ? "bg-danger/15 text-danger" : "bg-amber/15 text-amber"
         }`}
       >
         <Icono size={12} />

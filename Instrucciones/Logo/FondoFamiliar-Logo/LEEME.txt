@@ -1,0 +1,40 @@
+FONDO FAMILIAR — Identidad visual (concepto «Brote F»)
+=====================================================
+
+CONCEPTO
+- La F: el tallo y las dos hojas forman la inicial; se reconoce aun a 32 px.
+- El brote: las hojas suben hacia la derecha, como el ahorro que crece mes a mes, todos desde el mismo tallo.
+- La semilla: el punto ámbar es el fondo común que siembran los 19 asociados; aporta el toque cálido y familiar.
+Formas planas, sin degradados: la versión de un color funciona igual.
+
+PALETA
+  Brote          #2BD9A0  Principal en tema oscuro: símbolo, acento, botón primario (texto Noche encima).
+  Bosque         #0B7A57  Principal en tema claro (5.3:1 sobre blanco) e inicio del degradado de la tarjeta.
+  Ámbar          #FFB547  Acento cálido (semilla, utilidades, avisos). En tema claro: #C27512.
+  Noche          #0A0E0D  Fondo oscuro (reemplaza #0b0b10).
+  Superficie     #141B19  Tarjetas en tema oscuro.
+  Texto oscuro   #ECF2EF  Texto sobre fondo oscuro; secundario #8A9590.
+  Niebla         #F4F7F6  Fondo claro.
+  Texto claro    #0A0E0D  Texto sobre fondo claro; secundario #5B6662.
+  Degradado tarjeta del préstamo: #0B7A57 -> #0E3B2E (135°), en lugar del morado #7c3aed.
+
+ARCHIVOS
+  logo-horizontal.svg     Logo principal (para fondo oscuro), fondo transparente
+  logo-oscuro.svg         Igual que el anterior: para usar SOBRE fondo oscuro
+  logo-claro.svg          Para usar SOBRE fondo claro
+  logo-1color.svg         Blanco, un color
+  logo-1color-negro.svg   Negro, un color
+  simbolo.svg / simbolo-claro.svg / simbolo-1color.svg   Símbolo sin texto
+  icono.svg               Ícono maskable (fondo completo, símbolo dentro del 80 % central)
+  icono-512.png / icono-192.png   Íconos PWA (purpose: "any maskable")
+  apple-icon.png          180×180 para src/app/apple-icon.png
+  favicon.ico             16/32/48/64 px para src/app/favicon.ico
+  splash.png / splash.svg 1170×2532 (390×844 @3x), pantalla de bienvenida
+El texto «Fondo Familiar» está convertido a trazos (Geist SemiBold), no depende de fuentes instaladas.
+
+INTEGRACIÓN
+  icono-512.png, icono-192.png  -> fondo-familiar/public/icons/
+  apple-icon.png                -> fondo-familiar/src/app/apple-icon.png
+  favicon.ico                   -> fondo-familiar/src/app/favicon.ico
+  Tarjeta del préstamo: símbolo en blanco con la semilla ámbar + «Fondo Familiar» (o logo-1color.svg).
+  manifest: theme_color "#0A0E0D", background_color "#0A0E0D".

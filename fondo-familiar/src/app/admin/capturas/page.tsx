@@ -116,7 +116,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/cap
               key={m}
               href={`/admin/capturas?mes=${m}`}
               className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                m === mesInicial ? "bg-foreground text-background" : porMes.has(m) ? "bg-accent-soft text-accent" : "border border-dashed border-card-border text-muted"
+                m === mesInicial ? "bg-accent text-accent-fg" : porMes.has(m) ? "bg-accent-soft text-accent" : "border border-dashed border-card-border text-muted"
               }`}
             >
               {mesLargo(`${m}-01`).slice(0, 3)} {m.slice(2, 4)}

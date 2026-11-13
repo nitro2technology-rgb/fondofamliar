@@ -285,7 +285,7 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - Commits: terminan con la línea `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`. El usuario pide el commit/push explícitamente cada vez.
 
 
-## Sesión 8 (2026-11-11) — Semana 4 casi completa — LEER ESTO PRIMERO
+## Sesión 8 (2026-11-11) — Semana 4 casi completa (superado: leer «ESTADO ACTUAL» al final del archivo)
 
 **Hecho (todo en producción salvo lo marcado)**
 - Calendario real (`/calendario`) y Perfil completo (celular, ciudad, turno).
@@ -355,3 +355,67 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - Tutorial reescrito como recorrido guiado: resalta cada elemento (atributos `data-tour` en Inicio, Resumen admin y barras inferiores) y muestra burbujas con flecha que explican qué hacer. Pasos en `lib/tutorial.ts` (campo `objetivo` = nombres `data-tour`); componente `components/Tutorial.tsx`. Se abre solo la primera vez o con `/?tutorial=1` y `/admin?tutorial=1` (botones en Perfil y Admin -> Más). Si un elemento no existe en pantalla, la burbuja sale centrada.
 - `/completar-cuenta` ahora es un asistente de 2 pasos antes de entrar: (1) correo + contraseña nueva, (2) banco/billetera (Nu, Nequi, Daviplata, Bancolombia, Davivienda, Otro) y número o llave donde recibirá los pagos. Se guarda como "Nu · número" en `perfiles.cuenta_pago`.
 - Flujo de un asociado nuevo: Primer ingreso (celular) -> Completar cuenta (2 pasos) -> Inicio con el recorrido guiado.
+
+---
+# ESTADO ACTUAL (cierre sesión 9, 2026-11-12) — LEER ESTO PRIMERO
+**En producción** (`fondofamiliar.nitro2tech.com`, último commit de código `bc8a44d`). Migraciones 0001–0014 ejecutadas. Variables de Vercel (Supabase, Resend, CRON_SECRET) listas.
+
+**Construido en la sesión 9**: panel admin estilo usuario (Resumen · Pagos · Préstamos · Más), Pagos con pestañas Cuota/Préstamos, filtros Deben/Pagaron y subida manual de comprobantes (también de préstamos), detalle de cada socio (`/admin/socio/[id]`), cola de préstamos con votos y desembolso, cuotas informativas con botón de cobro, captura NU por rondas (se sube por adelantado) con historial, asistencia con multas cobrables y bloqueo de préstamo por multas/mora, solicitud rápida de préstamo en Inicio, cierre de ciclo con liquidación y PDF (plazo = un minuto antes de la última reunión), selector de archivos con vista previa, tutorial guiado en pantalla (asociado y admin), primer ingreso en 2 pasos (correo+contraseña, cuenta de pagos), limpieza de `entregas_cadena`.
+
+## Qué falta
+**Usuario**
+1. Probar en el celular lo nuevo: primer ingreso (2 pasos), tutorial guiado, panel admin, Pagos, cola de préstamos, captura NU.
+2. Avisar a los 19 que activen su cuenta con «Primer ingreso» (hasta entonces nadie recibe correos).
+3. Agregar celulares de Freddy Yamá y Gianni Obando en Más → Asociados.
+4. Subir la captura NU de octubre (la conciliación debe dar $480.000) y las de cada ronda en su reunión.
+5. Entregar el Excel histórico si se quiere migrar pagos de cuotas pasados (la carga 0011 solo trajo aportes únicos y 6 préstamos vigentes). Decidir cómo cargar pagos sin comprobante.
+6. Confirmar con los directivos: fórmula de mora (provisional, 4 % mensual sobre cada interés vencido y no pagado), definición de ahorro acumulado y caja prestable, premios de juegos pagados en la reunión, multa de ausencia solo en Pasto, riesgo de usura del 4 % y si se permite más de un préstamo a la vez.
+
+**Desarrollo**
+1. Pruebas de punta a punta con datos reales (pago de cuota -> aprobación -> confirmación del receptor; préstamo completo; asistencia -> multa -> cobro -> desbloqueo; cierre). Revertir en SQL lo que sea de prueba.
+2. PWA instalable (manifest, ícono, splash con logo).
+3. Respaldo periódico de la base (Supabase gratis no trae respaldos diarios): exportación automática o script.
+4. Bloquear el desembolso de una solicitud ya radicada si el deudor tiene multas pendientes (hoy solo se bloquea radicar).
+5. «Registrar pago recibido» en `/admin/prestamos` no exige comprobante, a diferencia de la regla de cuotas; decidir si se deja o se elimina.
+6. Rediseño pendiente (mismo estilo píldora/tarjetas) de Multas, Aportes únicos y Asociados.
+7. Cierre de ciclo: hoy solo informa y genera PDF; faltan avisos por correo a deudores al acercarse la última reunión y, si se quiere, una acción de «cerrar ciclo» que bloquee nuevos préstamos.
+8. Actualizar `Especificaciones de uso.md` y `Especificaciones tecnicas.md` a v3 (siguen en v2 de la sesión 7).
+9. Limpieza menor: `lib/mock.ts` sin uso real; unificar saltos de línea (mezcla CRLF/LF).
+
+**Notas técnicas nuevas**
+- Páginas admin usan `requerirAdmin()` y consultas con RLS; las que necesitan cartera/vigentes usan `lib/cartera.ts` (service role, solo servidor).
+- Tutorial: texto en `lib/tutorial.ts`, elementos señalados con `data-tour="..."`; se repite con `/?tutorial=1` o `/admin?tutorial=1`.
+- Con `cacheComponents`, los componentes cliente que usan `usePathname`/`useSearchParams` deben ir dentro de `<Suspense>` (por eso `AdminNav` está envuelto en `admin/layout.tsx`).
+- Para editar archivos con CRLF desde scripts Python usar `newline=""` y respetar el salto de línea del archivo.
+
+## Sesión 10 (2026-11-13) — PWA y bloqueo por multas (sin subir; compila y pasa lint)
+- PWA instalable: `src/app/manifest.ts`, íconos provisionales (morado con "F") en `public/icons/` y `src/app/apple-icon.png`, `appleWebApp` en el layout; el proxy deja pasar `manifest.webmanifest`. Falta: ícono/logo definitivo y splash.
+- `desembolsarPrestamo` ya no desembolsa si el deudor tiene multas pendientes (el botón no avisa; pendiente mostrar aviso en la cola).
+- Celulares de Freddy y Gianni ya cargados por el usuario.
+- Rediseño estilo píldora/tarjetas de `/admin/multas` (Por cobrar/Cobradas, botón Cobrar), `/admin/aportes` (resumen x/19) y `/admin/asociados` (tarjeta desplegable con Avatar y progreso de cuentas activas); enlaces "← Más". Aviso rojo y botón desactivado en la cola de préstamos si el deudor tiene multas (`BotonEnvio` ahora acepta `disabled`).
+- Decisión pendiente: si «Registrar pago recibido» en `/admin/prestamos` debe exigir comprobante (recomendado). Respaldo periódico de la base: se deja para después.
+- DECIDIDO: todo pago queda con soporte. Se eliminó `registrarMovimientoPrestamo` y el formulario «Registrar pago recibido»; en `/admin/prestamos` (Vigentes) ahora el botón lleva a `/admin/pagos?tipo=prestamo` (el admin sube el comprobante por el deudor).
+- Creado `Instrucciones/Instrucciones logo - Claude Design.md` (encargo del logo, paleta libre). Al recibir el logo: integrarlo en íconos PWA, favicon, splash y tarjeta del préstamo.
+
+## Sesión 10 (cont.) — 4x1000, día de pago mensual y notificaciones push (sin subir; compila y pasa lint)
+- **Interés del préstamo**: ahora vence cada MES el mismo día del desembolso (`desembolsado_en`), ya no en reuniones (`lib/prestamos.ts`: `sumarMeses`, `proximoPago`, `ultimoVencimiento`; se quitó el parámetro `reuniones`). Mora: por cada mes de retraso.
+- **4x1000**: 0,4 % del capital, se suma una sola vez a la PRIMERA cuota de interés (`interesProximo`, `primeraCuotaPendiente`). Solo aplica a préstamos con `prestamos.cobrar_4x1000 = true` (se marca al desembolsar); los 6 cargados del Excel quedan en false. Se muestra en Pagos y Préstamos.
+- **Push**: `public/sw.js`, `lib/push.ts` (web-push, borra suscripciones caducadas), `components/ActivarNotificaciones.tsx` (aviso en Inicio y interruptor en Perfil), acciones `guardarSuscripcionPush`/`quitarSuscripcionPush`. Avisos: nueva solicitud y pago por revisar (admins), solicitud aprobada/rechazada, desembolso y pago aprobado/rechazado (deudor), y el cron diario: cuota (3 días antes/día/mora), interés del préstamo (3 días antes/día/mora semanal) y «Hay $X disponibles para prestar» a todos una vez al día. En iPhone solo funcionan con la app instalada.
+- **Migración `0015_4x1000_y_push.sql`** (columna `cobrar_4x1000` + tabla `push_suscripciones`). **Falta ejecutarla.**
+- **Variables en Vercel (obligatorias para push)**: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (Sensitive) y `VAPID_ASUNTO` (valores en `.env.local`); luego Redeploy. Sin ellas la app funciona pero no envía push.
+- Revisar: los 6 préstamos del Excel ahora pagan el día del mes de su fecha de desembolso; confirmar que esas fechas sean correctas.
+- **4x1000 en la contabilidad (ajuste)**: la cuenta NU NO es exenta, así que siempre se cobra 0,4 % del desembolso. El reembolso es un movimiento propio `reembolso_4x1000` (migración 0015; `pagos_prestamo.monto_4x1000`): NO suma a la caja prestable ni a las utilidades del cierre. Lo que se paga como interés cubre primero el 4x1000 pendiente. Se debe desde el primer vencimiento y aparece en la deuda del deudor (`interesPendiente` = interés + 4x1000 vencido; `gmfPendiente`, `interesSoloPendiente`). `saldo_calculado` descuenta el impuesto pagado al banco al desembolsar y suma el reembolso (la conciliación NU cuadra). Si el `alter type ... add value` falla en el SQL Editor, ejecutar esa línea sola primero.
+
+## Sesión 10 (cont.) — Logo «Brote F» y login con memoria (sin subir; compila y pasa lint)
+- Logo en `Instrucciones/Logo/FondoFamiliar-Logo/` (LEEME.txt con concepto y paleta). Integrado: íconos PWA (`public/icons`), `apple-icon.png`, `favicon.ico`, `public/logo/*`, componente `components/Logo.tsx` (`Logo` cambia según tema; `Simbolo` en línea).
+- **Paleta nueva (verde)** en `globals.css`: Brote #2BD9A0 / Bosque #0B7A57 (acento), Ámbar #FFB547 (`--amber`), fondo Noche #0A0E0D, tarjetas #141B19; tema claro Niebla #F4F7F6. Degradado de tarjetas #0B7A57 -> #0E3B2E; avatares, correos, PDFs y manifest actualizados. Variante Tailwind `light:` para elementos solo del tema claro.
+- Logo en login, primer ingreso, completar cuenta, elegir panel y tarjeta del préstamo.
+- Login recuerda a la última persona (correo + nombre en localStorage, nunca la contraseña): «Hola de nuevo, X» y solo pide la contraseña; «No soy yo» lo olvida. La sesión de Supabase ya persistía por cookies.
+- Falta (opcional): splash de iOS (`public/logo/splash.png` está disponible).
+- Colores del logo en TODA la app (asociado y admin): botones principales y pestañas activas en verde (`bg-accent text-accent-fg`), navegación activa verde, estados pendientes/por revisar en ámbar (`bg-amber/15 text-amber`), chip de la tarjeta dorado, avatares en verde/ámbar, `--ok` = verde de marca. Ya no queda ningún morado ni azul.
+
+## Sesión 10 (cont.) — Foto de perfil y Recuerdos (sin subir; compila, pasa lint y build)
+- **Foto de perfil (opcional)**: `components/SubirFotoPerfil.tsx` (recorta cuadrado 512 px y comprime en el navegador, sube directo a Supabase Storage). Se pide como paso 3 («Omitir y entrar») del asistente `/completar-cuenta`, se puede poner/cambiar/quitar en Perfil, y en Inicio sale un aviso cerrable (`AvisoFoto`) a quien no tiene. `Avatar` acepta `foto`; se muestra en Inicio, panel admin, Perfil, Asociados, detalle de socio y Recuerdos (en otras listas aún salen las iniciales). `lib/fotos.ts` (URL pública) y `lib/fotos-servidor.ts` (`fotosPerfil`, tolera que falte la columna).
+- **Recuerdos** (`/recuerdos`, nuevo ítem en la barra inferior): lista de reuniones ya realizadas (con portada y conteo) y galería por reunión `/recuerdos/[id]` con cuadrícula, visor con flechas, y «Subir fotos» (hasta 5 por persona por reunión; cada una se comprime a 1600 px y se crea miniatura de 480 px). Cada quien borra las suyas; los admins pueden borrar cualquiera. Archivos privados con enlaces firmados de 1 hora.
+- **Migración `0016_fotos_y_recuerdos.sql`** (columna `perfiles.foto_ruta`, buckets `fotos-perfil` público y `recuerdos` privado, tabla `recuerdos` con RLS y trigger de máximo 5). **Falta ejecutarla** (junto con 0015).
+- Nota: el layout de `(app)` envuelve `BottomNav` en `<Suspense>` (necesario para rutas dinámicas con `cacheComponents`).

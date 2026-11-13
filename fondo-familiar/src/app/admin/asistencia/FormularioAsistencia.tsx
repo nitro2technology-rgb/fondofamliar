@@ -7,10 +7,10 @@ import Avatar from "@/components/Avatar";
 import { guardarAsistencia } from "@/lib/acciones";
 
 const ESTADOS = [
-  ["puntual", "Puntual", "bg-ok text-white"],
-  ["tarde", "Tarde", "bg-amber-500 text-white"],
+  ["puntual", "Puntual", "bg-accent text-accent-fg"],
+  ["tarde", "Tarde", "bg-amber text-accent-fg"],
   ["ausente", "Ausente", "bg-danger text-white"],
-  ["justificada", "Excusa", "bg-foreground text-background"],
+  ["justificada", "Excusa", "bg-accent text-accent-fg"],
 ] as const;
 
 type Persona = { id: string; nombre: string; ciudad: string | null };
@@ -74,7 +74,7 @@ export default function FormularioAsistencia({
                 {p.ciudad && <p className="text-xs text-muted">{p.ciudad}</p>}
               </div>
               {multa > 0 && (
-                <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-500">
+                <span className="rounded-full bg-amber/15 px-2.5 py-1 text-xs font-semibold text-amber">
                   Multa {pesos(multa)}
                 </span>
               )}
@@ -114,7 +114,7 @@ export default function FormularioAsistencia({
         type="button"
         onClick={guardar}
         disabled={guardando || sinCambios}
-        className="w-full rounded-full bg-foreground py-4 font-semibold text-background disabled:opacity-60"
+        className="w-full rounded-full bg-accent py-4 font-semibold text-accent-fg disabled:opacity-60"
       >
         {guardando ? "Guardando…" : sinCambios ? "Asistencia guardada ✓" : "Guardar asistencia"}
       </button>

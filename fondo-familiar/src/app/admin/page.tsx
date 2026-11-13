@@ -1,3 +1,4 @@
+import { fotosPerfil } from "@/lib/fotos-servidor";
 import { Suspense } from "react";
 import Link from "next/link";
 import { ArrowRight, Camera, CalendarClock, Gavel, Landmark, Receipt, Repeat, Users } from "lucide-react";
@@ -20,7 +21,7 @@ export default function Admin() {
 
 async function AdminContenido() {
   const perfil = await requerirAdmin();
-  const [f, visto] = await Promise.all([resumenFondo(), tutorialVisto(perfil.id, "admin")]);
+  const [f, visto, fotos] = await Promise.all([resumenFondo(), tutorialVisto(perfil.id, "admin"), fotosPerfil([perfil.id])]);
   const esHoy = f.siguiente?.fecha_reunion === f.hoy;
 
   return (
@@ -30,9 +31,7 @@ async function AdminContenido() {
 
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex size-11 items-center justify-center rounded-full bg-foreground/15 text-lg font-bold">
-            {perfil.nombre.charAt(0)}
-          </div>
+          <Avatar nombre={perfil.nombre} size={44} foto={fotos.get(perfil.id) ?? null} />
           <div>
             <p className="text-xs text-muted">Administración</p>
             <h1 className="text-lg font-bold leading-tight">{perfil.nombre.split(" ")[0]}</h1>
@@ -47,7 +46,7 @@ async function AdminContenido() {
         <p data-tour="caja" className="mt-1 text-6xl font-extrabold tracking-tight">{pesos(f.caja)}</p>
         <Link
           href="/admin/prestamos"
-          className="mt-4 rounded-full bg-foreground/15 px-5 py-2 text-sm font-medium backdrop-blur"
+          className="mt-4 rounded-full bg-accent/20 text-accent px-5 py-2 text-sm font-medium backdrop-blur"
         >
           {f.solicitudesEnVotacion > 0
             ? `${f.solicitudesEnVotacion} solicitud${f.solicitudesEnVotacion > 1 ? "es" : ""} en votación`
@@ -65,7 +64,7 @@ async function AdminContenido() {
         ].map(({ href, label, icon: Icon, aviso, descarga }) => {
           const contenido = (
             <>
-              <span className="relative flex size-14 items-center justify-center rounded-full bg-card text-foreground shadow-lg">
+              <span className="relative flex size-14 items-center justify-center rounded-full bg-card text-accent shadow-lg">
                 <Icon size={24} />
                 {aviso > 0 && (
                   <span className="absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-bold text-accent-fg">
@@ -107,7 +106,7 @@ async function AdminContenido() {
       {f.pagosPorRevisar > 0 && (
         <Link
           href="/admin/pagos"
-          className="flex items-center justify-center gap-2 rounded-full bg-foreground py-4 text-center font-semibold text-background"
+          className="flex items-center justify-center gap-2 rounded-full bg-accent py-4 text-center font-semibold text-accent-fg"
         >
           Revisar {f.pagosPorRevisar} pago{f.pagosPorRevisar > 1 ? "s" : ""} pendiente{f.pagosPorRevisar > 1 ? "s" : ""}
           <ArrowRight size={20} />

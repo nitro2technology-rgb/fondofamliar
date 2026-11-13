@@ -55,15 +55,14 @@ export async function estadoDeCuenta(asociadoId: string) {
 // Préstamo en curso del asociado (si lo hay) y lo que puede pedir.
 export async function resumenPrestamo(asociadoId: string) {
   const supabase = await crearClienteServidor();
-  const [{ data: prestamo }, { data: params }, { data: turnos }, { data: caja }] = await Promise.all([
+  const [{ data: prestamo }, { data: params }, { data: caja }] = await Promise.all([
     supabase
       .from("prestamos")
-      .select("id, estado, monto, desembolsado_en")
+      .select("id, estado, monto, desembolsado_en, cobrar_4x1000")
       .eq("asociado_id", asociadoId)
       .in("estado", ["radicado", "aprobado", "vigente"])
       .maybeSingle(),
     supabase.from("parametros").select("clave, valor").in("clave", ["interes_prestamo_pct", "interes_mora_pct", "tope_prestamo"]),
-    supabase.from("cadena_turnos").select("fecha_reunion"),
     supabase.rpc("caja_disponible"),
   ]);
   const p = Object.fromEntries((params ?? []).map((x) => [x.clave, Number(x.valor)]));
@@ -79,9 +78,9 @@ export async function resumenPrestamo(asociadoId: string) {
   const cuentas = cuentasPrestamo(
     prestamo.desembolsado_en,
     movs ?? [],
-    (turnos ?? []).map((t) => t.fecha_reunion),
     hoyColombia(),
     { interes: p.interes_prestamo_pct ?? 4, mora: p.interes_mora_pct ?? 4 },
+    prestamo.cobrar_4x1000,
   );
   return { prestamo: { ...prestamo, cuentas }, tope, puedePedir, caja: cajaLibre };
 }

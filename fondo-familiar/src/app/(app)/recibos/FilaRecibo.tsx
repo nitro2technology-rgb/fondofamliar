@@ -7,7 +7,7 @@ import type { EstadoRecibo } from "@/lib/recibos";
 
 const ETIQUETA: Record<EstadoRecibo, [string, string]> = {
   confirmado: ["Confirmado", "bg-accent-soft text-accent"],
-  por_confirmar: ["Por confirmar", "bg-card-border text-muted"],
+  por_confirmar: ["Por confirmar", "bg-amber/15 text-amber"],
   rechazado: ["No recibido", "text-danger"],
   sin_subir: ["Sin comprobante", "text-danger"],
 };

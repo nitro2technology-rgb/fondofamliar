@@ -7,7 +7,7 @@ import VisorImagen from "@/components/VisorImagen";
 type Estado = "pendiente" | "aprobado" | "rechazado";
 
 const ETIQUETA: Record<Estado, [string, string]> = {
-  pendiente: ["Por revisar", "bg-card-border text-muted"],
+  pendiente: ["Por revisar", "bg-amber/15 text-amber"],
   aprobado: ["Aprobado", "bg-accent-soft text-accent"],
   rechazado: ["Rechazado", "bg-danger/15 text-danger"],
 };

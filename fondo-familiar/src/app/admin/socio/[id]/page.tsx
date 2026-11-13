@@ -1,3 +1,4 @@
+import { fotosPerfil } from "@/lib/fotos-servidor";
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -22,6 +23,7 @@ const TIPO_MOV: Record<string, string> = {
   interes: "Pago de interés",
   interes_mora: "Pago de mora",
   abono_capital: "Abono a capital",
+  reembolso_4x1000: "Reembolso 4x1000",
 };
 
 async function Contenido({ params }: { params: PageProps<"/admin/socio/[id]">["params"] }) {
@@ -43,7 +45,7 @@ async function Contenido({ params }: { params: PageProps<"/admin/socio/[id]">["p
     supabase.from("aportes_unicos").select("tipo, monto, fecha_pago").eq("asociado_id", id),
     supabase
       .from("prestamos")
-      .select("id, monto, estado, radicado_en, desembolsado_en")
+      .select("id, monto, estado, radicado_en, desembolsado_en, cobrar_4x1000")
       .eq("asociado_id", id)
       .order("radicado_en", { ascending: false }),
     supabase.from("multas").select("motivo, monto, pagada, reuniones(fecha)").eq("asociado_id", id),
@@ -52,7 +54,6 @@ async function Contenido({ params }: { params: PageProps<"/admin/socio/[id]">["p
   ]);
 
   const lista = turnos.data ?? [];
-  const reuniones = lista.map((t) => t.fecha_reunion);
   const miTurno = lista.find((t) => t.asociado_id === id);
   const fechaDe = (periodo: string) => lista.find((t) => t.fecha_reunion.slice(0, 7) === periodo.slice(0, 7))?.fecha_reunion ?? periodo;
   const p = Object.fromEntries((parametros.data ?? []).map((x) => [x.clave, Number(x.valor)]));
@@ -74,7 +75,7 @@ async function Contenido({ params }: { params: PageProps<"/admin/socio/[id]">["p
       </Link>
 
       <header className="flex items-center gap-4">
-        <Avatar nombre={perfil.nombre} size={64} />
+        <Avatar nombre={perfil.nombre} size={64} foto={(await fotosPerfil([id])).get(id) ?? null} />
         <div className="min-w-0">
           <h1 className="text-2xl font-bold leading-tight tracking-tight">{perfil.nombre}</h1>
           <p className="text-sm capitalize text-muted">
@@ -104,7 +105,7 @@ async function Contenido({ params }: { params: PageProps<"/admin/socio/[id]">["p
         )}
         {(prestamos.data ?? []).map((x) => {
           const m = (movs ?? []).filter((o) => o.prestamo_id === x.id);
-          const c = cuentasPrestamo(x.desembolsado_en, m, reuniones, hoy, { interes: p.interes_prestamo_pct ?? 4, mora: p.interes_mora_pct ?? 4 });
+          const c = cuentasPrestamo(x.desembolsado_en, m, hoy, { interes: p.interes_prestamo_pct ?? 4, mora: p.interes_mora_pct ?? 4 }, x.cobrar_4x1000);
           const suma = (t: string) => m.filter((o) => o.tipo === t).reduce((s, o) => s + Number(o.monto), 0);
           const vigente = x.estado === "vigente";
           return (
@@ -135,7 +136,7 @@ async function Contenido({ params }: { params: PageProps<"/admin/socio/[id]">["p
                   {vigente && (
                     <p className={`rounded-2xl px-4 py-3 text-sm ${c.interesPendiente + c.moraPendiente > 0 ? "bg-danger/10 text-danger" : "bg-accent-soft text-accent"}`}>
                       {c.interesPendiente + c.moraPendiente > 0
-                        ? `Debe ${pesos(c.interesPendiente)} de interés${c.moraPendiente > 0 ? ` y ${pesos(c.moraPendiente)} de mora` : ""}.`
+                        ? `Debe ${pesos(c.interesSoloPendiente)} de interés${c.gmfPendiente > 0 && c.interesPendiente > c.interesSoloPendiente ? `, ${pesos(c.gmfPendiente)} de 4x1000` : ""}${c.moraPendiente > 0 ? ` y ${pesos(c.moraPendiente)} de mora` : ""}.`
                         : "Está al día con los intereses."}
                     </p>
                   )}
@@ -181,7 +182,7 @@ async function Contenido({ params }: { params: PageProps<"/admin/socio/[id]">["p
               <div key={c.periodo} className="flex items-center gap-3 px-2 py-3">
                 <span
                   className={`flex size-8 items-center justify-center rounded-full ${
-                    pagada ? "bg-accent text-accent-fg" : vencida ? "bg-danger/15 text-danger" : "bg-card-border text-muted"
+                    pagada ? "bg-accent text-accent-fg" : vencida ? "bg-danger/15 text-danger" : "bg-amber/15 text-amber"
                   }`}
                 >
                   {pagada ? <Check size={16} /> : vencida ? <TriangleAlert size={15} /> : <Clock size={15} />}
@@ -246,7 +247,7 @@ function Fila({ t, n, v, alerta }: { t: string; n: string; v: string; alerta?: b
 
 function Estado({ estado }: { estado: string }) {
   const mapa: Record<string, [string, string]> = {
-    radicado: ["En votación", "bg-card-border text-muted"],
+    radicado: ["En votación", "bg-amber/15 text-amber"],
     aprobado: ["Aprobado", "bg-accent-soft text-accent"],
     vigente: ["Vigente", "bg-accent text-accent-fg"],
     pagado: ["Pagado", "bg-ok/15 text-ok"],

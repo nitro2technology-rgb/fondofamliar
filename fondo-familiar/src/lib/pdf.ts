@@ -5,7 +5,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf
 const MARGEN = 40;
 const ANCHO = 595;
 const ALTO = 842;
-const MORADO = rgb(0.43, 0.16, 0.85);
+const MORADO = rgb(0.043, 0.478, 0.341); // verde Bosque #0B7A57 del logo
 const GRIS = rgb(0.4, 0.4, 0.4);
 
 // WinAnsi no tiene espacios especiales ni otros símbolos: se normalizan.

@@ -12,9 +12,9 @@ const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 export function plantilla(titulo: string, lineas: string[], boton?: { texto: string; ruta: string }) {
   const base = process.env.APP_URL ?? "https://fondofamiliar.nitro2tech.com";
   return `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:16px">
-<h2 style="color:#6d28d9;margin:0 0 12px">${esc(titulo)}</h2>
+<h2 style="color:#0b7a57;margin:0 0 12px">${esc(titulo)}</h2>
 ${lineas.map((l) => `<p style="margin:8px 0;color:#222">${esc(l)}</p>`).join("")}
-${boton ? `<p style="margin:20px 0"><a href="${base}${boton.ruta}" style="background:#7a2ee6;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none">${esc(boton.texto)}</a></p>` : ""}
+${boton ? `<p style="margin:20px 0"><a href="${base}${boton.ruta}" style="background:#0b7a57;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none">${esc(boton.texto)}</a></p>` : ""}
 <p style="color:#888;font-size:12px">Fondo de Ahorro Familiar</p></div>`;
 }
 

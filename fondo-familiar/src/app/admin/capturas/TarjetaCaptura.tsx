@@ -83,7 +83,7 @@ export default function TarjetaCaptura({ c }: { c: DatosCaptura }) {
               type="button"
               onClick={() => setEditando((v) => !v)}
               className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold ${
-                editando ? "bg-foreground text-background" : "bg-background"
+                editando ? "bg-accent text-accent-fg" : "bg-background"
               }`}
             >
               <Pencil size={14} />
@@ -102,7 +102,7 @@ export default function TarjetaCaptura({ c }: { c: DatosCaptura }) {
           </label>
           <SelectorArchivo titulo="Cambiar la imagen (opcional)" ayuda="Si no eliges una, se conserva la actual" />
           <div className="flex flex-wrap items-center gap-3">
-            <button disabled={ocupado} className="rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background disabled:opacity-60">
+            <button disabled={ocupado} className="rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-fg disabled:opacity-60">
               {comprimiendo ? "Comprimiendo…" : pendiente ? "Guardando…" : "Guardar cambios"}
             </button>
             {confirmar ? (

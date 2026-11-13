@@ -1,15 +1,16 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { ArrowLeft, Landmark, Lock, Mail } from "lucide-react";
+import { ArrowLeft, Camera, Landmark, Lock, Mail } from "lucide-react";
+import SubirFotoPerfil from "@/components/SubirFotoPerfil";
 import { completarCuenta, type EstadoForm } from "@/lib/acciones";
 
 const campo = "w-full rounded-2xl border border-card-border bg-card px-4 py-4 outline-none focus:border-accent";
 const BANCOS = ["Nu", "Nequi", "Daviplata", "Bancolombia", "Davivienda", "Otro"];
 
-// Primer ingreso en dos pasos: 1) correo y contraseña propia; 2) dónde quieres recibir tus pagos.
+// Primer ingreso en tres pasos: 1) correo y contraseña propia; 2) dónde quieres recibir tus pagos; 3) foto de perfil (opcional).
 // Todos los campos quedan montados (solo se ocultan) para que el envío incluya los de ambos pasos.
-export default function FormularioCompletar() {
+export default function FormularioCompletar({ nombre }: { nombre: string }) {
   const [estado, accion, pendiente] = useActionState<EstadoForm, FormData>(completarCuenta, {});
   const [paso, setPaso] = useState(1);
   const [aviso, setAviso] = useState("");
@@ -18,6 +19,7 @@ export default function FormularioCompletar() {
   const [correo, setCorreo] = useState("");
   const [clave, setClave] = useState("");
   const [confirmar, setConfirmar] = useState("");
+  const [conFoto, setConFoto] = useState(false);
 
   function continuar() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo.trim())) return setAviso("Escribe un correo válido.");
@@ -32,10 +34,10 @@ export default function FormularioCompletar() {
   return (
     <form action={accion} className="space-y-4">
       <div className="flex items-center gap-2">
-        {[1, 2].map((n) => (
+        {[1, 2, 3].map((n) => (
           <span key={n} className={`h-1.5 flex-1 rounded-full ${n <= paso ? "bg-accent" : "bg-card-border"}`} />
         ))}
-        <span className="ml-1 text-xs text-muted">Paso {paso} de 2</span>
+        <span className="ml-1 text-xs text-muted">Paso {paso} de 3</span>
       </div>
 
       <div className={paso === 1 ? "space-y-3" : "hidden"}>
@@ -67,7 +69,7 @@ export default function FormularioCompletar() {
               key={b}
               type="button"
               onClick={() => setBanco(b)}
-              className={`rounded-full px-4 py-2 text-sm font-semibold ${banco === b ? "bg-foreground text-background" : "bg-card"}`}
+              className={`rounded-full px-4 py-2 text-sm font-semibold ${banco === b ? "bg-accent text-accent-fg" : "bg-card"}`}
             >
               {b}
             </button>
@@ -81,16 +83,35 @@ export default function FormularioCompletar() {
         />
         <input type="hidden" name="cuenta_pago" value={cuenta} />
         <p className="px-1 text-xs text-muted">Ej: 3001234567 o tu llave Bre-B. Podrás cambiarla después en tu Perfil.</p>
-        {(aviso || estado.error) && <p className="text-sm text-danger">{aviso || estado.error}</p>}
+        {aviso && <p className="text-sm text-danger">{aviso}</p>}
         <div className="flex gap-2">
           <button type="button" onClick={() => setPaso(1)} aria-label="Volver" className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-card">
             <ArrowLeft size={20} />
           </button>
           <button
-            disabled={pendiente || numero.trim().length < 3}
+            type="button"
+            disabled={numero.trim().length < 3}
+            onClick={() => setPaso(3)}
             className="flex-1 rounded-2xl bg-accent py-4 font-semibold text-accent-fg disabled:opacity-60"
           >
-            {pendiente ? "Guardando…" : "Guardar y entrar"}
+            Continuar
+          </button>
+        </div>
+      </div>
+
+      <div className={paso === 3 ? "space-y-4" : "hidden"}>
+        <p className="flex items-center gap-2 font-semibold">
+          <Camera size={18} className="text-accent" /> Tu foto de perfil
+        </p>
+        <p className="text-sm text-muted">Así te verán los demás asociados. Es opcional: puedes agregarla o cambiarla después en tu Perfil.</p>
+        <SubirFotoPerfil nombre={nombre} actual={null} tamano={132} alCambiar={setConFoto} />
+        {estado.error && <p className="text-sm text-danger">{estado.error}</p>}
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setPaso(2)} aria-label="Volver" className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-card">
+            <ArrowLeft size={20} />
+          </button>
+          <button disabled={pendiente} className="flex-1 rounded-2xl bg-accent py-4 font-semibold text-accent-fg disabled:opacity-60">
+            {pendiente ? "Guardando…" : conFoto ? "Guardar y entrar" : "Omitir y entrar"}
           </button>
         </div>
       </div>

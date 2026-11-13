@@ -5,11 +5,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { clienteAdmin } from "@/lib/supabase/admin";
-import { requerirAdmin, requerirPerfil } from "@/lib/auth";
+import { requerirAdmin, requerirPerfil, requerirSesion as requerirSesionPerfil } from "@/lib/auth";
 import { hoyColombia, pesos } from "@/lib/format";
 import { enviarCorreos, plantilla } from "@/lib/correo";
 import { resumenPrestamo } from "@/lib/cuentas";
 import { plazoVencido } from "@/lib/cierre";
+import { gmfPorPagar } from "@/lib/prestamos";
+import { enviarPush, enviarPushAdmins } from "@/lib/push";
 
 export type EstadoForm = { error?: string; ok?: boolean };
 
@@ -545,6 +547,12 @@ export async function solicitarPrestamo(_: EstadoForm, formData: FormData): Prom
       "Nueva solicitud de préstamo",
       plantilla("Nueva solicitud de préstamo", [`${perfil.nombre} solicitó ${pesos(monto)}.`, "Revísala y vota en el panel de administración."], { texto: "Ir a préstamos", ruta: "/admin/prestamos" }),
     );
+    await enviarPushAdmins({
+      titulo: "Nueva solicitud de préstamo",
+      cuerpo: `${perfil.nombre} solicitó ${pesos(monto)}. Revísala y vota.`,
+      url: "/admin/prestamos",
+      tag: "solicitud",
+    });
   } catch (e) {
     console.error("Aviso de solicitud falló", e);
   }
@@ -558,9 +566,23 @@ export async function votarPrestamo(formData: FormData) {
   const voto = String(formData.get("voto"));
   if (voto !== "aprobar" && voto !== "rechazar") return;
   const supabase = await crearClienteServidor();
-  await supabase
-    .from("votos_prestamo")
-    .insert({ prestamo_id: String(formData.get("id")), admin_id: admin.id, voto });
+  const prestamoId = String(formData.get("id"));
+  const { error } = await supabase.from("votos_prestamo").insert({ prestamo_id: prestamoId, admin_id: admin.id, voto });
+  if (!error) {
+    // Si con este voto se decidió la solicitud, se avisa al solicitante.
+    const { data: p } = await supabase.from("prestamos").select("estado, monto, asociado_id").eq("id", prestamoId).single();
+    if (p && (p.estado === "aprobado" || p.estado === "rechazado")) {
+      await enviarPush([p.asociado_id], {
+        titulo: p.estado === "aprobado" ? "Tu préstamo fue aprobado" : "Tu solicitud de préstamo fue rechazada",
+        cuerpo:
+          p.estado === "aprobado"
+            ? `Los directivos aprobaron ${pesos(Number(p.monto))}. Pronto se te entregará el dinero.`
+            : "Los directivos no aprobaron tu solicitud. Consulta con ellos los detalles.",
+        url: "/prestamos",
+        tag: "prestamo-decision",
+      }).catch(() => 0);
+    }
+  }
   revalidatePath("/admin/prestamos");
 }
 
@@ -569,43 +591,32 @@ export async function desembolsarPrestamo(formData: FormData) {
   const id = String(formData.get("id"));
   const supabase = await crearClienteServidor();
   const [{ data: prestamo }, { data: caja }] = await Promise.all([
-    supabase.from("prestamos").select("monto, estado").eq("id", id).single(),
+    supabase.from("prestamos").select("monto, estado, asociado_id").eq("id", id).single(),
     supabase.rpc("caja_disponible"),
   ]);
   // La caja ya descuenta los préstamos aprobados, incluido este.
   if (!prestamo || prestamo.estado !== "aprobado" || Number(caja) < 0) return;
+  // No se desembolsa a quien tenga multas pendientes.
+  const { data: multasPend } = await supabase
+    .from("multas")
+    .select("id")
+    .eq("asociado_id", prestamo.asociado_id)
+    .eq("pagada", false)
+    .limit(1);
+  if ((multasPend ?? []).length > 0) return;
 
   const fecha = hoyColombia();
   const { error } = await supabase
     .from("movimientos_prestamo")
     .insert({ prestamo_id: id, tipo: "desembolso", monto: prestamo.monto, fecha, registrado_por: admin.id });
   if (error) return;
-  await supabase.from("prestamos").update({ estado: "vigente", desembolsado_en: fecha }).eq("id", id);
-  revalidatePath("/admin/prestamos");
-}
-
-export async function registrarMovimientoPrestamo(formData: FormData) {
-  const admin = await requerirAdmin();
-  const id = String(formData.get("id"));
-  const tipo = String(formData.get("tipo"));
-  const monto = montoDe(formData.get("monto"));
-  if (!["interes", "abono_capital", "interes_mora"].includes(tipo) || monto <= 0) return;
-
-  const supabase = await crearClienteServidor();
-  const { data: movs } = await supabase.from("movimientos_prestamo").select("tipo, monto").eq("prestamo_id", id);
-  const saldo = (movs ?? []).reduce(
-    (s, m) => s + (m.tipo === "desembolso" ? Number(m.monto) : m.tipo === "abono_capital" ? -Number(m.monto) : 0),
-    0,
-  );
-  if (tipo === "abono_capital" && monto > saldo) return;
-
-  const { error } = await supabase
-    .from("movimientos_prestamo")
-    .insert({ prestamo_id: id, tipo, monto, fecha: hoyColombia(), registrado_por: admin.id });
-  if (error) return;
-  if (tipo === "abono_capital" && monto === saldo) {
-    await supabase.from("prestamos").update({ estado: "pagado" }).eq("id", id);
-  }
+  await supabase.from("prestamos").update({ estado: "vigente", desembolsado_en: fecha, cobrar_4x1000: true }).eq("id", id);
+  await enviarPush([prestamo.asociado_id], {
+    titulo: "Tu préstamo fue desembolsado",
+    cuerpo: `Se habilitó tu préstamo de ${pesos(Number(prestamo.monto))}. Pagarás el interés cada mes, el día ${Number(fecha.slice(8, 10))}.`,
+    url: "/prestamos",
+    tag: "prestamo-desembolso",
+  }).catch(() => 0);
   revalidatePath("/admin/prestamos");
 }
 
@@ -639,10 +650,13 @@ export async function reportarPagoPrestamo(_: EstadoForm, formData: FormData): P
   const { error: errorSubida } = await supabase.storage.from("comprobantes-pago").upload(ruta, archivo);
   if (errorSubida) return { error: "No se pudo subir la imagen." };
 
+  // De lo que paga como interés, primero se cubre el reembolso del 4x1000 pendiente.
+  const gmf = Math.min(interes, c.gmfPendiente);
   const { error } = await supabase.from("pagos_prestamo").insert({
     prestamo_id: prestamo.id,
     asociado_id: perfil.id,
-    monto_interes: interes,
+    monto_interes: interes - gmf,
+    monto_4x1000: gmf,
     monto_mora: mora,
     monto_capital: capital,
     ruta_archivo: ruta,
@@ -660,6 +674,12 @@ export async function reportarPagoPrestamo(_: EstadoForm, formData: FormData): P
       "Pago de préstamo por revisar",
       plantilla("Pago de préstamo por revisar", [`${perfil.nombre} reportó un pago de ${pesos(interes + mora + capital)} a su préstamo.`], { texto: "Revisar pagos", ruta: "/admin/pagos" }),
     );
+    await enviarPushAdmins({
+      titulo: "Pago de préstamo por revisar",
+      cuerpo: `${perfil.nombre} reportó un pago de ${pesos(interes + mora + capital)}.`,
+      url: "/admin/pagos?tipo=prestamo",
+      tag: "pago-prestamo",
+    });
   } catch (e) {
     console.error("Aviso de pago de préstamo falló", e);
   }
@@ -674,6 +694,7 @@ export async function reportarPagoPrestamo(_: EstadoForm, formData: FormData): P
 export async function revisarPagoPrestamo(id: string, decision: "aprobado" | "rechazado", nota?: string): Promise<EstadoForm> {
   const admin = await requerirAdmin();
   const supabase = await crearClienteServidor();
+  const { data: reportado } = await supabase.from("pagos_prestamo").select("asociado_id").eq("id", id).maybeSingle();
 
   if (decision === "aprobado") {
     const { data, error } = await supabase.rpc("aprobar_pago_prestamo", { p_id: id });
@@ -687,6 +708,14 @@ export async function revisarPagoPrestamo(id: string, decision: "aprobado" | "re
       .eq("estado", "pendiente")
       .select("id");
     if (error || !data?.length) return { error: "No se pudo rechazar (¿ya fue revisado?)." };
+  }
+  if (reportado) {
+    await enviarPush([reportado.asociado_id], {
+      titulo: decision === "aprobado" ? "Pago de préstamo aprobado" : "Pago de préstamo rechazado",
+      cuerpo: decision === "aprobado" ? "Un administrador confirmó tu pago. ¡Gracias!" : "Revisa el motivo y vuelve a enviar tu comprobante.",
+      url: "/prestamos",
+      tag: "pago-prestamo-revisado",
+    }).catch(() => 0);
   }
   revalidatePath("/admin/pagos");
   revalidatePath("/admin/prestamos");
@@ -785,10 +814,11 @@ export async function subirPagoPrestamoAdmin(_: EstadoForm, formData: FormData):
 
   const db = clienteAdmin();
   const [{ data: prestamo }, { data: movs }] = await Promise.all([
-    db.from("prestamos").select("id, asociado_id, estado").eq("id", prestamoId).maybeSingle(),
-    db.from("movimientos_prestamo").select("tipo, monto").eq("prestamo_id", prestamoId),
+    db.from("prestamos").select("id, asociado_id, estado, cobrar_4x1000").eq("id", prestamoId).maybeSingle(),
+    db.from("movimientos_prestamo").select("tipo, monto, fecha").eq("prestamo_id", prestamoId),
   ]);
   if (!prestamo || prestamo.estado !== "vigente") return { error: "Ese préstamo no está vigente." };
+  const gmf = Math.min(interes, gmfPorPagar(prestamo.cobrar_4x1000, movs ?? []));
   const saldo = (movs ?? []).reduce(
     (s, m) => s + (m.tipo === "desembolso" ? Number(m.monto) : m.tipo === "abono_capital" ? -Number(m.monto) : 0),
     0,
@@ -802,7 +832,8 @@ export async function subirPagoPrestamoAdmin(_: EstadoForm, formData: FormData):
   const { error } = await db.from("pagos_prestamo").insert({
     prestamo_id: prestamoId,
     asociado_id: prestamo.asociado_id,
-    monto_interes: interes,
+    monto_interes: interes - gmf,
+    monto_4x1000: gmf,
     monto_mora: mora,
     monto_capital: capital,
     ruta_archivo: ruta,
@@ -825,4 +856,91 @@ export async function marcarTutorialVisto(panel: "asociado" | "admin") {
     .from("perfiles")
     .update(panel === "admin" ? { tutorial_admin: true } : { tutorial_asociado: true })
     .eq("id", perfil.id);
+}
+
+// ───────── Notificaciones push ─────────
+export async function guardarSuscripcionPush(sub: { endpoint: string; p256dh: string; auth: string }): Promise<EstadoForm> {
+  const perfil = await requerirPerfil();
+  if (!sub.endpoint.startsWith("https://") || !sub.p256dh || !sub.auth) return { error: "Suscripción no válida." };
+  const { error } = await clienteAdmin()
+    .from("push_suscripciones")
+    .upsert({ asociado_id: perfil.id, endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth }, { onConflict: "endpoint" });
+  if (error) return { error: "No se pudo activar las notificaciones." };
+  return { ok: true };
+}
+
+export async function quitarSuscripcionPush(endpoint: string) {
+  const perfil = await requerirPerfil();
+  await clienteAdmin().from("push_suscripciones").delete().eq("endpoint", endpoint).eq("asociado_id", perfil.id);
+}
+
+// ───────── Foto de perfil y Recuerdos ─────────
+// La foto ya la subió el navegador (comprimida) a «fotos-perfil/<id>/…»; aquí solo se guarda la ruta.
+export async function guardarFotoPerfil(ruta: string): Promise<EstadoForm> {
+  const perfil = await requerirSesionPerfil();
+  if (!ruta.startsWith(`${perfil.id}/`) || ruta.includes("..")) return { error: "Foto no válida." };
+  const db = clienteAdmin();
+  const { data: previo } = await db.from("perfiles").select("foto_ruta").eq("id", perfil.id).maybeSingle();
+  const { error } = await db.from("perfiles").update({ foto_ruta: ruta }).eq("id", perfil.id);
+  if (error) return { error: "No se pudo guardar la foto." };
+  if (previo?.foto_ruta && previo.foto_ruta !== ruta) await db.storage.from("fotos-perfil").remove([previo.foto_ruta]);
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function quitarFotoPerfil(): Promise<EstadoForm> {
+  const perfil = await requerirSesionPerfil();
+  const db = clienteAdmin();
+  const { data: previo } = await db.from("perfiles").select("foto_ruta").eq("id", perfil.id).maybeSingle();
+  await db.from("perfiles").update({ foto_ruta: null }).eq("id", perfil.id);
+  if (previo?.foto_ruta) await db.storage.from("fotos-perfil").remove([previo.foto_ruta]);
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+// Registra las fotos de recuerdo que el navegador ya subió (comprimidas) a «recuerdos/<id>/<reunión>/…». Máximo 5 por persona.
+export async function registrarRecuerdos(reunionId: string, fotos: { ruta: string; mini: string }[]): Promise<EstadoForm> {
+  const perfil = await requerirPerfil();
+  const prefijo = `${perfil.id}/${reunionId}/`;
+  const db = clienteAdmin();
+  const limpiar = () => db.storage.from("recuerdos").remove(fotos.flatMap((f) => [f.ruta, f.mini]));
+
+  if (fotos.length === 0 || fotos.some((f) => !f.ruta.startsWith(prefijo) || !f.mini.startsWith(prefijo) || f.ruta.includes(".."))) {
+    await limpiar();
+    return { error: "Fotos no válidas." };
+  }
+  const supabase = await crearClienteServidor();
+  const [{ data: reunion }, { count }] = await Promise.all([
+    supabase.from("reuniones").select("fecha").eq("id", reunionId).maybeSingle(),
+    supabase.from("recuerdos").select("id", { count: "exact", head: true }).eq("reunion_id", reunionId).eq("asociado_id", perfil.id),
+  ]);
+  if (!reunion || reunion.fecha > hoyColombia()) {
+    await limpiar();
+    return { error: "Esa reunión todavía no ha llegado." };
+  }
+  if ((count ?? 0) + fotos.length > 5) {
+    await limpiar();
+    return { error: "Puedes subir máximo 5 fotos por reunión." };
+  }
+  const { error } = await supabase
+    .from("recuerdos")
+    .insert(fotos.map((f) => ({ reunion_id: reunionId, asociado_id: perfil.id, ruta: f.ruta, ruta_mini: f.mini })));
+  if (error) {
+    await limpiar();
+    return { error: "No se pudieron guardar las fotos." };
+  }
+  revalidatePath("/recuerdos", "layout");
+  return { ok: true };
+}
+
+export async function eliminarRecuerdo(id: string): Promise<EstadoForm> {
+  const perfil = await requerirPerfil();
+  const db = clienteAdmin();
+  const { data: r } = await db.from("recuerdos").select("asociado_id, ruta, ruta_mini").eq("id", id).maybeSingle();
+  if (!r) return { ok: true };
+  if (r.asociado_id !== perfil.id && perfil.rol === "asociado") return { error: "Solo puedes borrar tus fotos." };
+  await db.from("recuerdos").delete().eq("id", id);
+  await db.storage.from("recuerdos").remove([r.ruta, r.ruta_mini]);
+  revalidatePath("/recuerdos", "layout");
+  return { ok: true };
 }

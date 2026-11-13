@@ -8,7 +8,7 @@ import SelectorArchivo from "@/components/SelectorArchivo";
 
 
 const ETIQUETA = {
-  pendiente: ["En revisión", "bg-card-border text-muted"],
+  pendiente: ["En revisión", "bg-amber/15 text-amber"],
   aprobado: ["Aprobado", "bg-accent-soft text-accent"],
   rechazado: ["Rechazado", "text-danger"],
 } as const;
@@ -46,7 +46,7 @@ export default function FormularioPago({
     startTransition(() => accion(datos));
   }
 
-  const [textoEstado, claseEstado] = reporte ? ETIQUETA[reporte.estado] : ["Sin enviar", "bg-card-border text-muted"];
+  const [textoEstado, claseEstado] = reporte ? ETIQUETA[reporte.estado] : ["Sin enviar", "bg-amber/15 text-amber"];
   const aprobado = reporte?.estado === "aprobado";
 
   return (

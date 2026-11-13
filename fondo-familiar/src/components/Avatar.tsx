@@ -1,14 +1,18 @@
 // Círculo con la inicial; el color sale del nombre para que cada persona tenga el suyo.
 const TONOS = [
-  "from-violet-500 to-fuchsia-500",
-  "from-indigo-500 to-sky-500",
-  "from-emerald-500 to-teal-500",
-  "from-amber-500 to-orange-500",
-  "from-rose-500 to-pink-500",
-  "from-cyan-500 to-blue-500",
+  "from-[#0b7a57] to-[#0e3b2e]",
+  "from-[#c27512] to-[#7a4a0a]",
+  "from-[#12906a] to-[#0b7a57]",
+  "from-[#d98a1a] to-[#a35f0c]",
 ];
 
-export default function Avatar({ nombre, size = 44 }: { nombre: string; size?: number }) {
+export default function Avatar({ nombre, size = 44, foto }: { nombre: string; size?: number; foto?: string | null }) {
+  if (foto) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={foto} alt={nombre} width={size} height={size} style={{ width: size, height: size }} className="shrink-0 rounded-full object-cover shadow-md" />
+    );
+  }
   let h = 0;
   for (const c of nombre) h = (h * 31 + c.charCodeAt(0)) % TONOS.length;
   return (

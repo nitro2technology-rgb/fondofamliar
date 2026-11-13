@@ -111,7 +111,7 @@ async function Contenido() {
 
       <a
         href="/admin/liquidacion-pdf"
-        className="flex items-center justify-center gap-2 rounded-full bg-foreground py-4 font-semibold text-background"
+        className="flex items-center justify-center gap-2 rounded-full bg-accent py-4 font-semibold text-accent-fg"
       >
         <FileText size={20} />
         Descargar liquidación (PDF)

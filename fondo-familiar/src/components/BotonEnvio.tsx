@@ -7,14 +7,16 @@ export default function BotonEnvio({
   children,
   enviando = "Guardando…",
   className = "",
+  disabled = false,
 }: {
   children: React.ReactNode;
   enviando?: string;
   className?: string;
+  disabled?: boolean;
 }) {
   const { pending } = useFormStatus();
   return (
-    <button disabled={pending} className={`${className} disabled:opacity-60`}>
+    <button disabled={pending || disabled} className={`${className} disabled:opacity-60`}>
       {pending ? enviando : children}
     </button>
   );

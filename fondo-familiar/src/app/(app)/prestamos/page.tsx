@@ -30,20 +30,20 @@ const MOV: Record<string, string> = {
   interes: "Pago de interés",
   abono_capital: "Abono a capital",
   interes_mora: "Pago de interés de mora",
+  reembolso_4x1000: "Reembolso del 4x1000",
 };
 
 async function Contenido() {
   const perfil = await requerirPerfil();
   const supabase = await crearClienteServidor();
 
-  const [{ data: prestamos }, { data: params }, { data: turnos }, { data: caja }] = await Promise.all([
+  const [{ data: prestamos }, { data: params }, { data: caja }] = await Promise.all([
     supabase
       .from("prestamos")
-      .select("id, monto, estado, radicado_en, desembolsado_en")
+      .select("id, monto, estado, radicado_en, desembolsado_en, cobrar_4x1000")
       .eq("asociado_id", perfil.id)
       .order("radicado_en", { ascending: false }),
     supabase.from("parametros").select("clave, valor").in("clave", ["interes_prestamo_pct", "interes_mora_pct", "tope_prestamo"]),
-    supabase.from("cadena_turnos").select("fecha_reunion"),
     supabase.rpc("caja_disponible"),
   ]);
 
@@ -71,9 +71,9 @@ async function Contenido() {
     ? cuentasPrestamo(
         enCurso.desembolsado_en,
         movs ?? [],
-        (turnos ?? []).map((t) => t.fecha_reunion),
         hoy,
         { interes: p.interes_prestamo_pct ?? 4, mora: p.interes_mora_pct ?? 4 },
+        enCurso.cobrar_4x1000,
       )
     : null;
 
@@ -136,16 +136,16 @@ async function Contenido() {
               <div className="grid grid-cols-3 gap-2 text-center text-sm">
                 <Dato titulo="Interés pendiente" valor={pesos(cuentas.interesPendiente)} />
                 <Dato titulo="Mora estimada" valor={pesos(cuentas.moraPendiente)} />
-                <Dato titulo="Desembolso" valor={enCurso.desembolsado_en ? fechaCorta(enCurso.desembolsado_en) : "—"} />
+                <Dato titulo="Próximo pago" valor={cuentas.proximoPago ? fechaCorta(cuentas.proximoPago) : "—"} />
               </div>
               <Link
                 href="/pagos?pago=prestamo"
-                className="flex items-center justify-center rounded-full bg-foreground py-4 font-semibold text-background"
+                className="flex items-center justify-center rounded-full bg-accent py-4 font-semibold text-accent-fg"
               >
                 Abonar o pagar interés
               </Link>
               <p className="text-xs text-muted">
-                El interés vence cada día de reunión y se paga hasta cancelar todo el capital. Puedes abonar a capital cuando quieras y por
+                El interés vence cada mes, el mismo día en que se te habilitó el préstamo, y se paga hasta cancelar todo el capital.{cuentas.primeraCuotaPendiente ? ` La primera cuota incluye el 4x1000 (${pesos(cuentas.cuatroPorMil)}), que solo se paga una vez.` : ""} Puedes abonar a capital cuando quieras y por
                 cualquier valor. Al cancelarlo por completo quedas libre para pedir otro préstamo. La mora es una estimación provisional.
               </p>
             </>

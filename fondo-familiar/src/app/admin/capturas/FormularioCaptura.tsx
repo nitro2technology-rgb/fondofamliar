@@ -58,7 +58,7 @@ export default function FormularioCaptura({
 
       {reemplaza && <p className="rounded-xl bg-accent-soft px-3 py-2 text-xs text-accent">Ese mes ya tiene captura: esta la reemplaza.</p>}
 
-      <button disabled={ocupado} className="w-full rounded-full bg-foreground py-3.5 font-semibold text-background disabled:opacity-60">
+      <button disabled={ocupado} className="w-full rounded-full bg-accent py-3.5 font-semibold text-accent-fg disabled:opacity-60">
         {comprimiendo ? "Comprimiendo…" : pendiente ? "Subiendo…" : "Subir captura"}
       </button>
       {estado.ok && !ocupado && <p className="text-center text-sm text-ok">Captura guardada ✓</p>}

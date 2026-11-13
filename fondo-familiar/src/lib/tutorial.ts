@@ -42,7 +42,7 @@ export const PASOS_ASOCIADO: PasoTutorial[] = [
       "Pide todo lo disponible u otro monto (tope $1.000.000)",
       "Si no alcanza, quedas en cola por orden de llegada",
       "Los 3 directivos votan; se aprueba con 2 votos",
-      "Un préstamo a la vez. Interés 4 % mensual fijo, se paga cada reunión; abonas a capital cuando quieras",
+      "Un préstamo a la vez. Interés 4 % mensual fijo, se paga cada mes el día de tu desembolso; abonas a capital cuando quieras",
     ],
   },
   {

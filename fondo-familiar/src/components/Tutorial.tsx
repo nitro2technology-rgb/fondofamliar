@@ -148,7 +148,7 @@ export default function Tutorial({ panel, abrirAlInicio = false }: { panel: "aso
             <button
               type="button"
               onClick={() => (ultimo ? cerrar() : setI(i + 1))}
-              className="flex-1 rounded-full bg-foreground py-2.5 text-sm font-semibold text-background"
+              className="flex-1 rounded-full bg-accent py-2.5 text-sm font-semibold text-accent-fg"
             >
               {ultimo ? "Empezar" : "Siguiente"}
             </button>

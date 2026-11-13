@@ -46,3 +46,19 @@ export function errorDeArchivo(datos: FormData, campo = "archivo", obligatorio =
   if (archivo.size > LIMITE_BYTES) return "La imagen es muy pesada. Toma un pantallazo de la pantalla en lugar de una foto.";
   return null;
 }
+
+// Foto de perfil: recorta al centro en cuadrado y reduce a `lado` px (JPEG).
+export async function comprimirCuadrada(archivo: File, lado = 512, calidad = 0.85): Promise<File> {
+  const bitmap = await createImageBitmap(archivo);
+  const corte = Math.min(bitmap.width, bitmap.height);
+  const lienzo = document.createElement("canvas");
+  lienzo.width = lado;
+  lienzo.height = lado;
+  const ctx = lienzo.getContext("2d");
+  if (!ctx) throw new Error("sin lienzo");
+  ctx.drawImage(bitmap, (bitmap.width - corte) / 2, (bitmap.height - corte) / 2, corte, corte, 0, 0, lado, lado);
+  bitmap.close();
+  const blob = await new Promise<Blob | null>((ok) => lienzo.toBlob(ok, "image/jpeg", calidad));
+  if (!blob) throw new Error("no se pudo comprimir");
+  return new File([blob], "perfil.jpg", { type: "image/jpeg" });
+}

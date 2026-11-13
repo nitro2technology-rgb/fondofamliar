@@ -30,7 +30,7 @@ async function Contenido() {
         Es tu turno de cadena ({mesLargo(turno.periodo)}). Revisa la captura de cada socio y confirma si recibiste el dinero.
       </p>
 
-      <div className="rounded-2xl bg-gradient-to-br from-accent to-[#4a1d99] p-4 text-accent-fg">
+      <div className="rounded-2xl bg-gradient-to-br from-[#0b7a57] to-[#0e3b2e] p-4 text-white">
         <p className="text-3xl font-bold">
           {turno.confirmados} de {turno.total}
         </p>

@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     supabase.from("cadena_turnos").select("asociado_id, turno, fecha_reunion").order("turno"),
     supabase.from("aportes_unicos").select("tipo, monto, fecha_pago").eq("asociado_id", objetivo),
     supabase.from("multas").select("monto").eq("asociado_id", objetivo).eq("pagada", false),
-    supabase.from("prestamos").select("id, monto, desembolsado_en").eq("asociado_id", objetivo).eq("estado", "vigente").maybeSingle(),
+    supabase.from("prestamos").select("id, monto, desembolsado_en, cobrar_4x1000").eq("asociado_id", objetivo).eq("estado", "vigente").maybeSingle(),
     supabase.from("parametros").select("clave, valor").in("clave", ["interes_prestamo_pct", "interes_mora_pct"]),
   ]);
   if (!perfil.data) return new Response("No encontrado", { status: 404 });
@@ -47,17 +47,17 @@ export async function GET(request: Request) {
   if (prestamo.data) {
     const { data: movs } = await supabase.from("movimientos_prestamo").select("tipo, monto, fecha").eq("prestamo_id", prestamo.data.id).order("fecha");
     const p = Object.fromEntries((params.data ?? []).map((x) => [x.clave, Number(x.valor)]));
-    const c = cuentasPrestamo(prestamo.data.desembolsado_en, movs ?? [], lTurnos.map((t) => t.fecha_reunion), hoy, {
+    const c = cuentasPrestamo(prestamo.data.desembolsado_en, movs ?? [], hoy, {
       interes: p.interes_prestamo_pct ?? 4,
       mora: p.interes_mora_pct ?? 4,
-    });
+    }, prestamo.data.cobrar_4x1000);
     r.seccion("Prestamo vigente");
     r.linea("Capital inicial", pesos(c.capitalInicial));
     r.linea("Saldo de capital", pesos(c.saldoCapital));
     r.linea("Interes mensual fijo", pesos(c.interesMensual));
     r.linea("Interes pendiente", pesos(c.interesPendiente));
     r.linea("Mora estimada", pesos(c.moraPendiente));
-    const nombres: Record<string, string> = { desembolso: "Desembolso", interes: "Interes", abono_capital: "Abono a capital", interes_mora: "Mora" };
+    const nombres: Record<string, string> = { desembolso: "Desembolso", interes: "Interes", abono_capital: "Abono a capital", interes_mora: "Mora", reembolso_4x1000: "Reembolso 4x1000" };
     if ((movs ?? []).length > 0) {
       r.tabla(["Fecha", "Movimiento", "Monto"], (movs ?? []).map((m) => [fechaCorta(m.fecha), nombres[m.tipo] ?? m.tipo, pesos(Number(m.monto))]), [110, 250, 135], [false, false, true]);
     }

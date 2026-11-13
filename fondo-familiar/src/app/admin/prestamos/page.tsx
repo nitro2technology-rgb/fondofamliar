@@ -5,7 +5,7 @@ import Avatar from "@/components/Avatar";
 import BotonEnvio from "@/components/BotonEnvio";
 import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
-import { desembolsarPrestamo, registrarMovimientoPrestamo, votarPrestamo } from "@/lib/acciones";
+import { desembolsarPrestamo, votarPrestamo } from "@/lib/acciones";
 import { cuentasPrestamo } from "@/lib/prestamos";
 import { fechaCorta, hoyColombia, pesos } from "@/lib/format";
 
@@ -24,11 +24,11 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
   const supabase = await crearClienteServidor();
   const hoy = hoyColombia();
 
-  const [{ data: activos }, { data: historial }, { data: votos }, { data: movs }, { data: turnos }, { data: params }, { data: caja }, { data: admins }] =
+  const [{ data: activos }, { data: historial }, { data: votos }, { data: movs }, { data: params }, { data: caja }, { data: admins }, { data: multasPend }] =
     await Promise.all([
       supabase
         .from("prestamos")
-        .select("id, asociado_id, monto, estado, radicado_en, desembolsado_en, perfiles!prestamos_asociado_id_fkey(nombre), externos(nombre)")
+        .select("id, asociado_id, monto, estado, radicado_en, desembolsado_en, cobrar_4x1000, perfiles!prestamos_asociado_id_fkey(nombre), externos(nombre)")
         .in("estado", ["radicado", "aprobado", "vigente"])
         .order("radicado_en"),
       supabase
@@ -39,20 +39,22 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
         .limit(20),
       supabase.from("votos_prestamo").select("prestamo_id, admin_id, voto"),
       supabase.from("movimientos_prestamo").select("prestamo_id, tipo, monto, fecha"),
-      supabase.from("cadena_turnos").select("fecha_reunion"),
       supabase.from("parametros").select("clave, valor").in("clave", ["interes_prestamo_pct", "interes_mora_pct"]),
       supabase.rpc("caja_disponible"),
       supabase.from("perfiles").select("id, nombre").in("rol", ["tesorero", "contador", "fiscal"]).eq("activo", true).order("nombre"),
+      supabase.from("multas").select("asociado_id, monto").eq("pagada", false),
     ]);
 
   const p = Object.fromEntries((params ?? []).map((x) => [x.clave, Number(x.valor)]));
-  const reuniones = (turnos ?? []).map((t) => t.fecha_reunion);
   const nombreDe = (x: { perfiles: unknown }) => (x.perfiles as { nombre: string } | null)?.nombre ?? "";
-  const cuentasDe = (x: { id: string; desembolsado_en: string | null }) =>
-    cuentasPrestamo(x.desembolsado_en, (movs ?? []).filter((o) => o.prestamo_id === x.id), reuniones, hoy, {
+  const cuentasDe = (x: { id: string; desembolsado_en: string | null; cobrar_4x1000: boolean }) =>
+    cuentasPrestamo(x.desembolsado_en, (movs ?? []).filter((o) => o.prestamo_id === x.id), hoy, {
       interes: p.interes_prestamo_pct ?? 4,
       mora: p.interes_mora_pct ?? 4,
-    });
+    }, x.cobrar_4x1000);
+
+  const multasDe = (id: string) =>
+    (multasPend ?? []).filter((m) => m.asociado_id === id).reduce((s, m) => s + Number(m.monto), 0);
 
   const cola = (activos ?? []).filter((x) => x.estado !== "vigente");
   const vigentes = (activos ?? []).filter((x) => x.estado === "vigente");
@@ -98,7 +100,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
           <Link
             key={v}
             href={href(v)}
-            className={`flex-1 rounded-full px-2 py-2 text-center text-sm font-semibold ${v === vista ? "bg-foreground text-background" : "text-muted"}`}
+            className={`flex-1 rounded-full px-2 py-2 text-center text-sm font-semibold ${v === vista ? "bg-accent text-accent-fg" : "text-muted"}`}
           >
             {t}
           </Link>
@@ -157,7 +159,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
                                 title={`${a.nombre}: ${o ? o.voto : "sin votar"}`}
                                 className={`flex size-7 items-center justify-center rounded-full text-[11px] font-bold ${
                                   o?.voto === "aprobar"
-                                    ? "bg-ok text-white"
+                                    ? "bg-accent text-accent-fg"
                                     : o?.voto === "rechazar"
                                       ? "bg-danger text-white"
                                       : "bg-background text-muted ring-1 ring-card-border"
@@ -184,7 +186,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
                             <button
                               name="voto"
                               value="aprobar"
-                              className="flex items-center justify-center gap-2 rounded-full bg-foreground py-3 text-sm font-semibold text-background"
+                              className="flex items-center justify-center gap-2 rounded-full bg-accent py-3 text-sm font-semibold text-accent-fg"
                             >
                               <ThumbsUp size={16} /> Aprobar
                             </button>
@@ -204,7 +206,16 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
                       <form action={desembolsarPrestamo} className="space-y-2">
                         <input type="hidden" name="id" value={x.id} />
                         <p className="text-xs text-ok">Aprobado por los directivos. Falta entregar el dinero.</p>
-                        <BotonEnvio enviando="Registrando…" className="w-full rounded-full bg-accent py-3 text-sm font-semibold text-accent-fg">
+                        {multasDe(x.asociado_id) > 0 && (
+                          <p className="rounded-2xl bg-danger/15 px-3 py-2 text-xs text-danger">
+                            Tiene {pesos(multasDe(x.asociado_id))} en multas pendientes: no se puede desembolsar hasta que las pague.
+                          </p>
+                        )}
+                        <BotonEnvio
+                          enviando="Registrando…"
+                          disabled={multasDe(x.asociado_id) > 0}
+                          className="w-full rounded-full bg-accent py-3 text-sm font-semibold text-accent-fg disabled:opacity-40"
+                        >
                           Registrar desembolso
                         </BotonEnvio>
                       </form>
@@ -237,7 +248,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
                   </Link>
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-medium ${
-                      c.moraPendiente > 0 ? "bg-danger/15 text-danger" : debe > 0 ? "bg-card-border text-muted" : "bg-accent-soft text-accent"
+                      c.moraPendiente > 0 ? "bg-danger/15 text-danger" : debe > 0 ? "bg-amber/15 text-amber" : "bg-accent-soft text-accent"
                     }`}
                   >
                     {c.moraPendiente > 0 ? "En mora" : debe > 0 ? `Debe ${pesos(debe)}` : "Al día"}
@@ -248,31 +259,12 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
                   <Dato t="Interés mes" v={pesos(c.interesMensual)} fondo />
                   <Dato t="Interés pend." v={pesos(c.interesPendiente)} fondo />
                 </div>
-                <details className="group">
-                  <summary className="cursor-pointer list-none rounded-full bg-background py-2.5 text-center text-xs font-semibold group-open:hidden">
-                    Registrar pago recibido
-                  </summary>
-                  <form action={registrarMovimientoPrestamo} className="space-y-2 rounded-2xl bg-background p-3">
-                    <input type="hidden" name="id" value={x.id} />
-                    <input
-                      name="monto"
-                      inputMode="numeric"
-                      placeholder="Monto recibido"
-                      className="w-full rounded-xl bg-card px-3 py-2.5 text-sm outline-none ring-1 ring-card-border focus:ring-accent"
-                    />
-                    <div className="grid grid-cols-3 gap-2">
-                      <button name="tipo" value="interes" className="rounded-full bg-foreground py-2.5 text-xs font-semibold text-background">
-                        Interés
-                      </button>
-                      <button name="tipo" value="interes_mora" className="rounded-full bg-card py-2.5 text-xs font-semibold">
-                        Mora
-                      </button>
-                      <button name="tipo" value="abono_capital" className="rounded-full bg-card py-2.5 text-xs font-semibold">
-                        Capital
-                      </button>
-                    </div>
-                  </form>
-                </details>
+                <Link
+                  href="/admin/pagos?tipo=prestamo"
+                  className="block rounded-full bg-background py-2.5 text-center text-xs font-semibold"
+                >
+                  Registrar pago con comprobante
+                </Link>
               </div>
             );
           })}

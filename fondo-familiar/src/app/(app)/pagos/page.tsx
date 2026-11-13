@@ -18,7 +18,7 @@ export default function Pagos({ searchParams }: PageProps<"/pagos">) {
 }
 
 const ETIQUETA = {
-  pendiente: ["En revisión", "bg-card-border text-muted"],
+  pendiente: ["En revisión", "bg-amber/15 text-amber"],
   aprobado: ["Aprobado", "bg-accent-soft text-accent"],
   rechazado: ["Rechazado", "bg-danger/15 text-danger"],
 } as const;
@@ -77,7 +77,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/pagos">["
     verPrestamo && vigente
       ? await supabase
           .from("pagos_prestamo")
-          .select("id, monto_interes, monto_mora, monto_capital, estado, nota, creado_en, ruta_archivo")
+          .select("id, monto_interes, monto_4x1000, monto_mora, monto_capital, estado, nota, creado_en, ruta_archivo")
           .eq("prestamo_id", vigente.id)
           .order("creado_en", { ascending: false })
           .limit(8)
@@ -131,6 +131,10 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/pagos">["
                   interesPendiente: vigente.cuentas.interesPendiente,
                   moraPendiente: vigente.cuentas.moraPendiente,
                   interesMensual: vigente.cuentas.interesMensual,
+                  interesProximo: vigente.cuentas.interesProximo,
+                  cuatroPorMil: vigente.cuentas.cuatroPorMil,
+                  primeraCuotaPendiente: vigente.cuentas.primeraCuotaPendiente,
+                  diaDePago: vigente.cuentas.proximoPago ? String(Number(vigente.cuentas.proximoPago.slice(8, 10))) : null,
                 }}
               />
               {firmadasPrestamo.length > 0 && (
@@ -139,7 +143,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/pagos">["
                   <div className="divide-y divide-card-border/60 rounded-[28px] bg-card px-4">
                     {firmadasPrestamo.map((r) => {
                       const [texto, clase] = ETIQUETA[r.estado as keyof typeof ETIQUETA];
-                      const total = Number(r.monto_interes) + Number(r.monto_mora) + Number(r.monto_capital);
+                      const total = Number(r.monto_interes) + Number(r.monto_4x1000) + Number(r.monto_mora) + Number(r.monto_capital);
                       return (
                         <div key={r.id} className="space-y-1 py-3">
                           <div className="flex items-center justify-between">
@@ -148,6 +152,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/pagos">["
                           </div>
                           <p className="text-xs text-muted">
                             {fechaCorta(r.creado_en.slice(0, 10))} · interés {pesos(Number(r.monto_interes))}
+                            {Number(r.monto_4x1000) > 0 && ` · 4x1000 ${pesos(Number(r.monto_4x1000))}`}
                             {Number(r.monto_mora) > 0 && ` · mora ${pesos(Number(r.monto_mora))}`} · capital {pesos(Number(r.monto_capital))}
                           </p>
                           {r.estado === "rechazado" && (
@@ -225,7 +230,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/pagos">["
                             <Check size={14} /> Pagada
                           </span>
                         ) : (
-                          <span className={`rounded-full px-3 py-1 text-xs font-medium ${vencida ? "bg-danger/15 text-danger" : "bg-card-border text-muted"}`}>
+                          <span className={`rounded-full px-3 py-1 text-xs font-medium ${vencida ? "bg-danger/15 text-danger" : "bg-amber/15 text-amber"}`}>
                             {vencida ? "En mora" : "Debes"}
                           </span>
                         )}

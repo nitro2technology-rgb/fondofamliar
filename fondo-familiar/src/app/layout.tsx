@@ -15,10 +15,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Fondo Familiar",
   description: "Fondo de Ahorro Familiar: aportes, préstamos y estado de cuenta.",
+  appleWebApp: { capable: true, title: "Fondo", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b0b10",
+  themeColor: "#0a0e0d",
 };
 
 // Aplica el tema guardado antes de pintar para evitar parpadeo.

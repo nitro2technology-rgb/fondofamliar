@@ -31,7 +31,7 @@ function Pildoras({ opciones, actual }: { opciones: { href: string; texto: strin
           key={o.clave}
           href={o.href}
           className={`flex-1 rounded-full px-3 py-2 text-center text-sm font-semibold ${
-            o.clave === actual ? "bg-foreground text-background" : "text-muted"
+            o.clave === actual ? "bg-accent text-accent-fg" : "text-muted"
           }`}
         >
           {o.texto}
@@ -217,7 +217,7 @@ async function VistaCuota({ periodoPedido, filtro }: { periodoPedido: string; fi
                 </Link>
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-medium ${
-                    f.pagada ? "bg-accent-soft text-accent" : f.porRevisar > 0 ? "bg-card-border text-foreground" : "bg-danger/15 text-danger"
+                    f.pagada ? "bg-accent-soft text-accent" : f.porRevisar > 0 ? "bg-amber/15 text-amber" : "bg-danger/15 text-danger"
                   }`}
                 >
                   {f.pagada ? "Pagada" : f.porRevisar > 0 ? `${f.porRevisar} por revisar` : hayEnviados ? "Incompleta" : "Sin enviar"}
@@ -262,7 +262,7 @@ async function VistaPrestamos({ filtro }: { filtro: Filtro }) {
 
   const { data: pp } = await supabase
     .from("pagos_prestamo")
-    .select("id, monto_interes, monto_mora, monto_capital, estado, nota, creado_en, ruta_archivo, perfiles!pagos_prestamo_asociado_id_fkey(nombre)")
+    .select("id, monto_interes, monto_4x1000, monto_mora, monto_capital, estado, nota, creado_en, ruta_archivo, perfiles!pagos_prestamo_asociado_id_fkey(nombre)")
     .order("creado_en", { ascending: false })
     .limit(40);
   const porRevisar = (pp ?? []).filter((x) => x.estado === "pendiente");
@@ -281,6 +281,7 @@ async function VistaPrestamos({ filtro }: { filtro: Filtro }) {
   const tarjeta = (x: NonNullable<typeof pp>[number]) => {
     const partes = [
       Number(x.monto_interes) > 0 && `interés ${pesos(Number(x.monto_interes))}`,
+      Number(x.monto_4x1000) > 0 && `4x1000 ${pesos(Number(x.monto_4x1000))}`,
       Number(x.monto_mora) > 0 && `mora ${pesos(Number(x.monto_mora))}`,
       Number(x.monto_capital) > 0 && `capital ${pesos(Number(x.monto_capital))}`,
     ].filter(Boolean);
@@ -290,7 +291,7 @@ async function VistaPrestamos({ filtro }: { filtro: Filtro }) {
         id={x.id}
         asociado={(x.perfiles as unknown as { nombre: string } | null)?.nombre ?? ""}
         detalle={partes.join(" · ")}
-        total={pesos(Number(x.monto_interes) + Number(x.monto_mora) + Number(x.monto_capital))}
+        total={pesos(Number(x.monto_interes) + Number(x.monto_4x1000) + Number(x.monto_mora) + Number(x.monto_capital))}
         fecha={fechaCorta(x.creado_en.slice(0, 10))}
         estadoInicial={x.estado as "pendiente" | "aprobado" | "rechazado"}
         notaInicial={x.nota}
@@ -339,7 +340,7 @@ async function VistaPrestamos({ filtro }: { filtro: Filtro }) {
             </Link>
             <span
               className={`rounded-full px-3 py-1 text-xs font-medium ${
-                alDia(c) ? "bg-accent-soft text-accent" : c.cuentas.moraPendiente > 0 ? "bg-danger/15 text-danger" : "bg-card-border text-muted"
+                alDia(c) ? "bg-accent-soft text-accent" : c.cuentas.moraPendiente > 0 ? "bg-danger/15 text-danger" : "bg-amber/15 text-amber"
               }`}
             >
               {alDia(c) ? "Al día" : `Debe ${pesos(c.cuentas.interesPendiente + c.cuentas.moraPendiente)}`}

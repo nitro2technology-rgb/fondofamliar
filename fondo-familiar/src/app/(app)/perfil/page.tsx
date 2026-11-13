@@ -1,3 +1,6 @@
+import SubirFotoPerfil from "@/components/SubirFotoPerfil";
+import { fotosPerfil } from "@/lib/fotos-servidor";
+import ActivarNotificaciones from "@/components/ActivarNotificaciones";
 import { Suspense } from "react";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -28,10 +31,14 @@ async function PerfilContenido() {
   const supabase = await crearClienteServidor();
   const { data: turno } = await supabase.from("cadena_turnos").select("turno, fecha_reunion").eq("asociado_id", perfil.id).maybeSingle();
   const { data: extra } = await supabase.from("perfiles").select("cuenta_pago, celular, ciudad").eq("id", perfil.id).maybeSingle();
+  const foto = (await fotosPerfil([perfil.id])).get(perfil.id) ?? null;
 
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold tracking-tight">Perfil</h1>
+      <section id="foto" className="rounded-[28px] bg-card p-5">
+        <SubirFotoPerfil nombre={perfil.nombre} actual={foto} />
+      </section>
       <div className="rounded-2xl border border-card-border bg-card p-4">
         <p className="font-semibold">{perfil.nombre}</p>
         <p className="text-sm text-muted">{perfil.correo}</p>
@@ -45,6 +52,7 @@ async function PerfilContenido() {
         <span>Tema claro / oscuro</span>
         <ThemeToggle />
       </div>
+      <ActivarNotificaciones />
       <Link
         href="/?tutorial=1"
         className="flex w-full items-center justify-center gap-2 rounded-full bg-card py-3.5 text-sm font-semibold"

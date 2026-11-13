@@ -25,7 +25,7 @@ export default function SolicitudRapida({ caja, tope }: { caja: number; tope: nu
   }
 
   return (
-    <section data-tour="solicitud" className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-accent to-[#4a1fa8] p-5 text-accent-fg shadow-xl">
+    <section data-tour="solicitud" className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#0b7a57] to-[#0e3b2e] p-5 text-white shadow-xl">
       <div className="pointer-events-none absolute -right-8 -top-8 size-32 rounded-full bg-white/15 blur-2xl" />
       <div className="relative space-y-4">
         <div className="flex items-center gap-2 text-sm font-medium opacity-90">

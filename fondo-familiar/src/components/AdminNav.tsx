@@ -32,7 +32,7 @@ export default function AdminNav() {
               <Link
                 href={href}
                 className={`flex flex-col items-center gap-1 pb-2 pt-3 text-[11px] font-medium transition-colors ${
-                  activo ? "text-foreground" : "text-muted"
+                  activo ? "text-accent" : "text-muted"
                 }`}
               >
                 <Icon size={24} strokeWidth={activo ? 2.5 : 2} className={activo ? "text-accent" : ""} />

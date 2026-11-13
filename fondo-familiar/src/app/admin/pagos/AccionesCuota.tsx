@@ -26,7 +26,7 @@ export default function AccionesCuota({
   const [panel, setPanel] = useState<Panel | null>(porRevisar > 0 ? "verificar" : null);
   const alternar = (p: Panel) => setPanel((a) => (a === p ? null : p));
   const base = "rounded-full px-3 py-2 text-xs font-semibold disabled:opacity-40";
-  const estilo = (p: Panel) => `${base} ${panel === p ? "bg-foreground text-background" : "bg-background text-foreground"}`;
+  const estilo = (p: Panel) => `${base} ${panel === p ? "bg-accent text-accent-fg" : "bg-background text-foreground"}`;
 
   return (
     <div className="space-y-2">

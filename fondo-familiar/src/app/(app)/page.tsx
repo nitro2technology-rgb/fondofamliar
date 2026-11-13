@@ -1,3 +1,6 @@
+import Avatar from "@/components/Avatar";
+import AvisoFoto from "@/components/AvisoFoto";
+import { fotosPerfil } from "@/lib/fotos-servidor";
 import Link from "next/link";
 import { ArrowRight, CalendarClock, Lock, CalendarDays, FileText, Landmark, PiggyBank, Receipt, Repeat, Upload } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -10,6 +13,7 @@ import { turnoPorConfirmar } from "@/lib/recibos";
 import AvisoConfirmar from "@/components/AvisoConfirmar";
 import SolicitudRapida from "@/components/SolicitudRapida";
 import Tutorial from "@/components/Tutorial";
+import ActivarNotificaciones from "@/components/ActivarNotificaciones";
 import { tutorialVisto } from "@/lib/tutorial-visto";
 import { crearClienteServidor } from "@/lib/supabase/server";
 
@@ -23,12 +27,14 @@ export default function Inicio() {
 
 async function InicioContenido() {
   const perfil = await requerirPerfil();
-  const [cuenta, { prestamo, tope, puedePedir, caja }, turnoCadena, visto] = await Promise.all([
+  const [cuenta, { prestamo, tope, puedePedir, caja }, turnoCadena, visto, fotos] = await Promise.all([
     estadoDeCuenta(perfil.id),
     resumenPrestamo(perfil.id),
     turnoPorConfirmar(perfil.id),
     tutorialVisto(perfil.id, "asociado"),
+    fotosPerfil([perfil.id]),
   ]);
+  const foto = fotos.get(perfil.id) ?? null;
   const { data: extra } = await (await crearClienteServidor())
     .from("perfiles")
     .select("cuenta_pago")
@@ -49,9 +55,7 @@ async function InicioContenido() {
 
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex size-11 items-center justify-center rounded-full bg-foreground/15 text-lg font-bold">
-            {perfil.nombre.charAt(0)}
-          </div>
+          <Avatar nombre={perfil.nombre} size={44} foto={foto} />
           <div>
             <p className="text-xs text-muted">Hola,</p>
             <h1 className="text-lg font-bold leading-tight">{perfil.nombre.split(" ")[0]}</h1>
@@ -67,7 +71,7 @@ async function InicioContenido() {
         <Link
           href={cuenta.cuota ? "/pagos" : "/calendario"}
           data-tour="cuota"
-          className="mt-4 rounded-full bg-foreground/15 px-5 py-2 text-sm font-medium backdrop-blur"
+          className="mt-4 rounded-full bg-accent/20 text-accent px-5 py-2 text-sm font-medium backdrop-blur"
         >
           {cuenta.cuota
             ? `Cuota ${pesos(cuenta.cuota.total)} · ${cuenta.cuota.estado} · vence ${fechaCorta(cuenta.cuota.vence)}`
@@ -85,7 +89,7 @@ async function InicioContenido() {
         ].map(({ href, label, icon: Icon, descarga }) => {
           const contenido = (
             <>
-              <span className="flex size-14 items-center justify-center rounded-full bg-card text-foreground shadow-lg">
+              <span className="flex size-14 items-center justify-center rounded-full bg-card text-accent shadow-lg">
                 <Icon size={24} />
               </span>
               <span className="mt-2 text-xs font-medium">{label}</span>
@@ -107,7 +111,7 @@ async function InicioContenido() {
         <Link
           href="/pagos"
           data-tour="pagar"
-          className="flex items-center justify-center gap-2 rounded-full bg-foreground py-4 text-center font-semibold text-background"
+          className="flex items-center justify-center gap-2 rounded-full bg-accent py-4 text-center font-semibold text-accent-fg"
         >
           Pagar y subir comprobantes
           <ArrowRight size={20} />
@@ -144,6 +148,10 @@ async function InicioContenido() {
           Falta registrar tu <span className="font-semibold">cuenta o llave para recibir pagos</span>. Toca aquí para agregarla.
         </Link>
       )}
+
+      {!foto && <AvisoFoto />}
+
+      <ActivarNotificaciones compacto />
 
       {puedeSolicitar && <SolicitudRapida caja={Math.max(0, caja)} tope={tope} />}
 
@@ -246,7 +254,7 @@ function FilaCuota({ c }: { c: CuotaFila }) {
       </div>
       <span
         className={`rounded-full px-3 py-1 text-xs font-medium ${
-          c.pagada ? "bg-accent-soft text-accent" : c.vencida ? "bg-danger/15 text-danger" : "bg-card-border text-muted"
+          c.pagada ? "bg-accent-soft text-accent" : c.vencida ? "bg-danger/15 text-danger" : "bg-amber/15 text-amber"
         }`}
       >
         {c.pagada ? "Pagada" : c.vencida ? "En mora" : "Pendiente"}

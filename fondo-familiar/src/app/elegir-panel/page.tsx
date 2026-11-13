@@ -1,3 +1,4 @@
+import Logo from "@/components/Logo";
 import Link from "next/link";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
@@ -19,6 +20,7 @@ async function Selector() {
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-4 px-4">
+      <div className="mb-2"><Logo altura={44} /></div>
       <h1 className="text-3xl font-bold tracking-tight">¿A qué panel quieres entrar?</h1>
       <Link
         href="/"
@@ -34,7 +36,7 @@ async function Selector() {
       </Link>
       <Link
         href="/admin"
-        className="flex items-center gap-4 rounded-3xl bg-gradient-to-br from-accent to-[#4a1d99] p-6 text-accent-fg"
+        className="flex items-center gap-4 rounded-3xl bg-gradient-to-br from-[#0b7a57] to-[#0e3b2e] p-6 text-white"
       >
         <span className="flex size-12 items-center justify-center rounded-2xl bg-white/15">
           <ShieldCheck size={24} />
