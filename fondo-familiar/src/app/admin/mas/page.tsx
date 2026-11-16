@@ -11,6 +11,7 @@ import {
   PiggyBank,
   Receipt,
   Repeat,
+  Trophy,
   Users,
   Wallet,
 } from "lucide-react";
@@ -28,7 +29,8 @@ export default function Mas() {
 
 const gestion = [
   { href: "/admin/cuotas", icon: Receipt, titulo: "Cuotas mensuales", nota: "Consulta por mes" },
-  { href: "/admin/asistencia", icon: CalendarCheck, titulo: "Asistencia y juegos" },
+  { href: "/admin/asistencia", icon: CalendarCheck, titulo: "Asistencia", nota: "Multas por retraso y ausencia" },
+  { href: "/admin/juegos", icon: Trophy, titulo: "Juegos", nota: "Bingos y premios" },
   { href: "/admin/multas", icon: PiggyBank, titulo: "Multas" },
   { href: "/admin/aportes", icon: Wallet, titulo: "Aportes únicos", nota: "Inicial y tecnológico" },
   { href: "/admin/capturas", icon: Camera, titulo: "Captura cuenta NU", nota: "Historial mensual" },

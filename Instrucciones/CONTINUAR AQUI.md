@@ -521,3 +521,5 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - Migración **0024_bingos.sql** (falta ejecutarla; próxima: 0025): parámetros `bingos_por_reunion` (3) y `premio_bingo` (9500), tabla `premios_bingo` (ganador, monto, comprobante en `comprobantes-pago/bingos/...`), `saldo_calculado` ahora resta los premios de `premios_bingo` (la tabla `juegos` quedó en desuso, estaba vacía).
 - Admin > Más > Asistencia y juegos: sección Bingos (`BingosReunion.tsx`, acciones `registrarPremioBingo` / `eliminarPremioBingo`; se quitó `guardarJuegos`), resumen de la reunión y tarjeta «Total de juegos en el ciclo» (`lib/juegos.ts`). La utilidad de juegos del cierre = recaudado (juegos de cuotas pagadas) − premios pagados (`lib/cierre.ts`).
 - Pendiente: si se quiere, mostrar el total de juegos a los asociados.
+
+- **Juegos separado de Asistencia**: nueva pantalla `/admin/juegos` (total del ciclo, selector de reunión y bingos con comprobante); `/admin/asistencia` queda solo con asistencia y multas. Botón circular «Juegos» en el Resumen admin y entradas separadas en Admin > Más.

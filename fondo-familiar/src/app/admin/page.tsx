@@ -1,7 +1,7 @@
 import { fotosPerfil } from "@/lib/fotos-servidor";
 import { Suspense } from "react";
 import Link from "next/link";
-import { ArrowRight, Camera, CalendarClock, Gavel, Landmark, Receipt, Repeat, Users } from "lucide-react";
+import { ArrowRight, Camera, CalendarClock, Gavel, Landmark, Receipt, Repeat, Trophy, Users } from "lucide-react";
 import Avatar from "@/components/Avatar";
 import CampanaAvisos from "@/components/CampanaAvisos";
 import AvatarSocio from "@/components/AvatarSocio";
@@ -64,6 +64,7 @@ async function AdminContenido() {
           { href: "/admin/pagos", label: "Pagos", icon: Receipt, aviso: f.pagosPorRevisar },
           { href: "/admin/prestamos", label: "Préstamos", icon: Landmark, aviso: 0 },
           { href: "/admin/asistencia", label: "Asistencia", icon: Users, aviso: 0 },
+          { href: "/admin/juegos", label: "Juegos", icon: Trophy, aviso: 0 },
           { href: "/admin/capturas", label: "Captura NU", icon: Camera, aviso: f.capturaPendiente ? 1 : 0, descarga: false },
         ].map(({ href, label, icon: Icon, aviso, descarga }) => {
           const contenido = (

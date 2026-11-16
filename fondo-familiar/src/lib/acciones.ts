@@ -1120,7 +1120,7 @@ export async function registrarPremioBingo(_: EstadoForm, formData: FormData): P
     await db.storage.from("comprobantes-pago").remove([ruta]);
     return { error: "No se pudo registrar el premio." };
   }
-  revalidatePath("/admin/asistencia");
+  revalidatePath("/admin/juegos");
   revalidatePath("/admin/capturas");
   return { ok: true };
 }
@@ -1132,7 +1132,7 @@ export async function eliminarPremioBingo(id: string): Promise<EstadoForm> {
   const { error } = await db.from("premios_bingo").delete().eq("id", id);
   if (error) return { error: "No se pudo eliminar." };
   if (premio?.ruta_comprobante) await db.storage.from("comprobantes-pago").remove([premio.ruta_comprobante]);
-  revalidatePath("/admin/asistencia");
+  revalidatePath("/admin/juegos");
   revalidatePath("/admin/capturas");
   return { ok: true };
 }
