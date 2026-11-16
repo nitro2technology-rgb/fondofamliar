@@ -2,7 +2,9 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
-import { guardarJuegos, marcarMultaPagada } from "@/lib/acciones";
+import { marcarMultaPagada } from "@/lib/acciones";
+import { resumenJuegos } from "@/lib/juegos";
+import BingosReunion, { type PremioBingo } from "./BingosReunion";
 import { fechaCorta, hoyColombia, mesLargo, pesos } from "@/lib/format";
 import BotonEnvio from "@/components/BotonEnvio";
 import FormularioAsistencia from "./FormularioAsistencia";
@@ -18,7 +20,6 @@ export default function Asistencia({ searchParams }: PageProps<"/admin/asistenci
   );
 }
 
-const campo = "w-full rounded-2xl bg-background px-4 py-3 text-sm outline-none ring-1 ring-card-border focus:ring-accent";
 
 async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/asistencia">["searchParams"] }) {
   await requerirAdmin();
@@ -42,10 +43,10 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/asi
   }
 
   const periodo = `${elegida.fecha.slice(0, 7)}-01`;
-  const [{ data: perfiles }, { data: asistencias }, { data: juegos }, { data: cuotas }, { data: multas }, { data: params }] = await Promise.all([
+  const [{ data: perfiles }, { data: asistencias }, { data: premiosDb }, { data: cuotas }, { data: multas }, { data: params }, { data: paramsJuegos }, totales] = await Promise.all([
     supabase.from("perfiles").select("id, nombre, ciudad").eq("activo", true).order("nombre"),
     supabase.from("asistencias").select("asociado_id, estado").eq("reunion_id", elegida.id),
-    supabase.from("juegos").select("recaudo, premios, utilidad").eq("reunion_id", elegida.id).maybeSingle(),
+    supabase.from("premios_bingo").select("id, monto, ruta_comprobante, ganador_id").eq("reunion_id", elegida.id).order("creado_en"),
     supabase.from("cuotas").select("juegos").eq("periodo", periodo).eq("estado", "pagada"),
     supabase
       .from("multas")
@@ -53,9 +54,25 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/asi
       .eq("reunion_id", elegida.id)
       .order("pagada"),
     supabase.from("parametros").select("clave, valor").in("clave", ["multa_tarde", "multa_ausencia"]),
+    supabase.from("parametros").select("clave, valor").in("clave", ["cuota_juegos", "bingos_por_reunion", "premio_bingo"]),
+    resumenJuegos(),
   ]);
   const p = Object.fromEntries((params ?? []).map((x) => [x.clave, Number(x.valor)]));
+  const pj = Object.fromEntries((paramsJuegos ?? []).map((x) => [x.clave, Number(x.valor)]));
+  const cuotaJuegos = pj.cuota_juegos ?? 3000;
+  const maxBingos = pj.bingos_por_reunion ?? 3;
+  const premioBingo = pj.premio_bingo ?? 9500;
   const sugerido = (cuotas ?? []).reduce((s, c) => s + Number(c.juegos), 0);
+
+  const rutas = (premiosDb ?? []).map((x) => x.ruta_comprobante).filter(Boolean) as string[];
+  const { data: firmadas } = rutas.length ? await supabase.storage.from("comprobantes-pago").createSignedUrls(rutas, 3600) : { data: [] };
+  const premios: PremioBingo[] = (premiosDb ?? []).map((x) => ({
+    id: x.id,
+    ganador: (perfiles ?? []).find((q) => q.id === x.ganador_id)?.nombre ?? "—",
+    monto: Number(x.monto),
+    url: firmadas?.find((f) => f.path === x.ruta_comprobante)?.signedUrl ?? null,
+  }));
+  const premiosReunion = premios.reduce((s, x) => s + x.monto, 0);
 
   return (
     <main className="mx-auto w-full max-w-md flex-1 space-y-4 px-4 py-8">
@@ -111,20 +128,44 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/asi
         </section>
       )}
 
-      <form action={guardarJuegos} className="space-y-3 rounded-[28px] bg-card p-5">
-        <input type="hidden" name="reunion_id" value={elegida.id} />
-        <h2 className="font-semibold">Juegos</h2>
+      <section className="space-y-3 rounded-[28px] bg-card p-5">
+        <h2 className="font-semibold">Bingos</h2>
         <p className="text-xs text-muted">
-          Recaudo sugerido (partes de juegos de cuotas pagadas): {pesos(sugerido)}. Mitad a premios y mitad a utilidad.
+          De cada cuota se recaudan {pesos(cuotaJuegos)} para juegos. Se juegan {maxBingos} bingos por reunión y a cada ganador se le pagan {pesos(premioBingo)}; lo
+          que sobra queda en el fondo.
         </p>
-        <input name="recaudo" inputMode="numeric" defaultValue={juegos?.recaudo ?? sugerido} className={campo} />
-        {juegos && (
-          <p className="text-xs text-muted">
-            Guardado: premios {pesos(Number(juegos.premios))} · utilidad {pesos(Number(juegos.utilidad))}
-          </p>
-        )}
-        <BotonEnvio className="w-full rounded-full bg-accent py-3.5 font-semibold text-accent-fg">Guardar juegos</BotonEnvio>
-      </form>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <Dato t="Recaudado (este mes)" v={pesos(sugerido)} />
+          <Dato t="Premios (esta reunión)" v={pesos(premiosReunion)} />
+          <Dato t="Queda en el fondo" v={pesos(sugerido - premiosReunion)} />
+        </div>
+        <BingosReunion
+          reunionId={elegida.id}
+          personas={(perfiles ?? []).map((x) => ({ id: x.id, nombre: x.nombre }))}
+          premios={premios}
+          maximo={maxBingos}
+          premioDefecto={premioBingo}
+        />
+      </section>
+
+      <section className="space-y-2 rounded-[28px] bg-card p-5">
+        <h2 className="font-semibold">Total de juegos en el ciclo</h2>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <Dato t="Recaudado" v={pesos(totales.recaudado)} destacado />
+          <Dato t="Premios pagados" v={pesos(totales.premios)} />
+          <Dato t="Queda en el fondo" v={pesos(totales.utilidad)} />
+        </div>
+        <p className="text-xs text-muted">Recaudado = parte de juegos de todas las cuotas pagadas hasta hoy. La utilidad se reparte al cierre del ciclo.</p>
+      </section>
     </main>
+  );
+}
+
+function Dato({ t, v, destacado }: { t: string; v: string; destacado?: boolean }) {
+  return (
+    <div className={`rounded-2xl px-2 py-3 ${destacado ? "bg-accent text-accent-fg" : "bg-background"}`}>
+      <p className="text-base font-bold">{v}</p>
+      <p className={`mt-0.5 text-[11px] leading-tight ${destacado ? "opacity-80" : "text-muted"}`}>{t}</p>
+    </div>
   );
 }

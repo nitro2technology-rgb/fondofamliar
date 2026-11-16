@@ -1086,20 +1086,55 @@ export async function marcarMultaPagada(formData: FormData) {
   revalidatePath("/");
 }
 
-// Resultado de los juegos de una reunión: la mitad del recaudo va a premios y la otra mitad a utilidad.
-export async function guardarJuegos(formData: FormData) {
-  await requerirAdmin();
-  const reunionId = String(formData.get("reunion_id"));
-  const recaudo = montoDe(formData.get("recaudo"));
-  const supabase = await crearClienteServidor();
-  await supabase.from("juegos").delete().eq("reunion_id", reunionId);
-  await supabase.from("juegos").insert({
-    reunion_id: reunionId,
-    recaudo,
-    premios: Math.floor(recaudo / 2),
-    utilidad: recaudo - Math.floor(recaudo / 2),
-  });
+// Bingos: en cada reunión se juegan varios (3) y a cada ganador se le paga un premio (9.500) con comprobante.
+// Lo que sobra del recaudo de juegos queda en el fondo.
+export async function registrarPremioBingo(_: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const admin = await requerirAdmin();
+  const reunionId = String(formData.get("reunion_id") ?? "");
+  const ganadorId = String(formData.get("ganador_id") ?? "");
+  const monto = montoDe(formData.get("monto"));
+  const archivo = formData.get("archivo");
+
+  if (!reunionId || !ganadorId) return { error: "Elige al ganador." };
+  if (!monto) return { error: "Escribe el valor del premio." };
+  if (!(archivo instanceof File) || archivo.size === 0) return { error: "Adjunta el comprobante del pago del premio." };
+  if (!archivo.type.startsWith("image/")) return { error: "El archivo debe ser una imagen (pantallazo o foto del comprobante)." };
+  if (archivo.size > 8 * 1024 * 1024) return { error: "La imagen pesa más de 8 MB." };
+
+  const db = clienteAdmin();
+  const [{ data: previos }, { data: param }] = await Promise.all([
+    db.from("premios_bingo").select("id").eq("reunion_id", reunionId),
+    db.from("parametros").select("valor").eq("clave", "bingos_por_reunion").maybeSingle(),
+  ]);
+  const maximo = Number(param?.valor ?? 3);
+  if ((previos ?? []).length >= maximo) return { error: `Ya están los ${maximo} premios de esta reunión.` };
+
+  const ruta = `bingos/${reunionId}/${Date.now()}.jpg`;
+  const { error: errorSubida } = await db.storage.from("comprobantes-pago").upload(ruta, archivo);
+  if (errorSubida) return { error: "No se pudo subir la imagen." };
+
+  const { error } = await db
+    .from("premios_bingo")
+    .insert({ reunion_id: reunionId, ganador_id: ganadorId, monto, ruta_comprobante: ruta, registrado_por: admin.id });
+  if (error) {
+    await db.storage.from("comprobantes-pago").remove([ruta]);
+    return { error: "No se pudo registrar el premio." };
+  }
   revalidatePath("/admin/asistencia");
+  revalidatePath("/admin/capturas");
+  return { ok: true };
+}
+
+export async function eliminarPremioBingo(id: string): Promise<EstadoForm> {
+  await requerirAdmin();
+  const db = clienteAdmin();
+  const { data: premio } = await db.from("premios_bingo").select("ruta_comprobante").eq("id", id).maybeSingle();
+  const { error } = await db.from("premios_bingo").delete().eq("id", id);
+  if (error) return { error: "No se pudo eliminar." };
+  if (premio?.ruta_comprobante) await db.storage.from("comprobantes-pago").remove([premio.ruta_comprobante]);
+  revalidatePath("/admin/asistencia");
+  revalidatePath("/admin/capturas");
+  return { ok: true };
 }
 
 // Un administrador sube por el deudor el comprobante de un pago de préstamo (queda "por revisar").

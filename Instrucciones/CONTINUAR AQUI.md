@@ -515,3 +515,9 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - **Usuario de prueba** (existe en la base compartida con producción): `prueba@fondofamiliar.nitro2tech.com`, asociado activo, sin cuotas ni turno. Su id está en `.env.local` como `PRUEBA_TURNO_ID`: SOLO en desarrollo (`NODE_ENV=development`) `esSimulacionTurno` le muestra Inicio y `/recibos` como si tuviera el turno del mes, en solo lectura. **Pendiente: eliminarlo (Auth + perfil) cuando termine de probar.**
 
 - **Cuenta del fondo en Pagar**: tarjeta «Paga a esta cuenta» (`components/CuentaFondo.tsx`) arriba de `/pagos` (cuota, préstamo y pago por varios) con el QR de Nu (`public/qr-fondo.png`, descargable), llave, cuenta de ahorros Nu y C.C. del fondo, cada una con botón «Copiar». Aclara que la cadena se paga a quien tiene el turno. Pendiente: verificar escaneando el QR; si no lee bien, reemplazar por el original.
+
+## Sesión 11 (cont. 2) — Bingos (juegos)
+- Regla: del pago al fondo ($43.000) son $40.000 de ahorro y $3.000 de juegos = bingos. En cada reunión se juegan 3 bingos y a cada ganador se le pagan $9.500 (con comprobante); lo que sobra del recaudo queda en el fondo.
+- Migración **0024_bingos.sql** (falta ejecutarla; próxima: 0025): parámetros `bingos_por_reunion` (3) y `premio_bingo` (9500), tabla `premios_bingo` (ganador, monto, comprobante en `comprobantes-pago/bingos/...`), `saldo_calculado` ahora resta los premios de `premios_bingo` (la tabla `juegos` quedó en desuso, estaba vacía).
+- Admin > Más > Asistencia y juegos: sección Bingos (`BingosReunion.tsx`, acciones `registrarPremioBingo` / `eliminarPremioBingo`; se quitó `guardarJuegos`), resumen de la reunión y tarjeta «Total de juegos en el ciclo» (`lib/juegos.ts`). La utilidad de juegos del cierre = recaudado (juegos de cuotas pagadas) − premios pagados (`lib/cierre.ts`).
+- Pendiente: si se quiere, mostrar el total de juegos a los asociados.

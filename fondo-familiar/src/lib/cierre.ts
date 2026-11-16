@@ -43,11 +43,11 @@ export async function datosCierre() {
     carteraVigente(hoy),
     supabase.from("cadena_turnos").select("turno, fecha_reunion").order("turno"),
     supabase.from("perfiles").select("id, nombre").eq("activo", true).order("nombre"),
-    supabase.from("cuotas").select("asociado_id, ahorro").eq("estado", "pagada"),
+    supabase.from("cuotas").select("asociado_id, ahorro, juegos").eq("estado", "pagada"),
     supabase.from("aportes_unicos").select("asociado_id, monto").eq("tipo", "inicial"),
     supabase.from("movimientos_prestamo").select("tipo, monto").in("tipo", ["interes", "interes_mora"]),
     supabase.from("multas").select("monto").eq("pagada", true),
-    supabase.from("juegos").select("utilidad"),
+    supabase.from("premios_bingo").select("monto"),
     supabase.from("reuniones").select("fecha, hora"),
   ]);
 
@@ -59,7 +59,8 @@ export async function datosCierre() {
     intereses: suma((movs.data ?? []).filter((m) => m.tipo === "interes"), "monto"),
     mora: suma((movs.data ?? []).filter((m) => m.tipo === "interes_mora"), "monto"),
     multas: suma(multas.data, "monto"),
-    juegos: suma(juegos.data, "utilidad"),
+    // Utilidad de los bingos = lo recaudado en juegos (cuotas pagadas) menos los premios pagados.
+    juegos: suma(cuotas.data, "juegos") - suma(juegos.data, "monto"),
   };
   const totalUtilidades = utilidades.intereses + utilidades.mora + utilidades.multas + utilidades.juegos;
   const parte = asociados.length ? Math.floor(totalUtilidades / asociados.length) : 0;

@@ -223,7 +223,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/pagos">["
                 cuotaId={cuota.id}
                 tipo="fondo"
                 titulo="Pago al fondo"
-                detalle="Ahorro + juegos, a la cuenta del fondo."
+                detalle={`Ahorro ${pesos(Number(cuota.ahorro))} + juegos (bingos) ${pesos(Number(cuota.juegos))}, a la cuenta del fondo.`}
                 monto={pesos(Number(cuota.ahorro) + Number(cuota.juegos))}
                 reporte={reporteDe("fondo")}
               />
