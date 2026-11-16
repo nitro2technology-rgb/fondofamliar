@@ -11,7 +11,7 @@ export type OpcionPersona = { id: string; nombre: string; mes: string; fondo: nu
 // Un solo comprobante para pagar la cuota de uno mismo y de otras personas.
 export default function PagoPorVarios({ personas, yoId }: { personas: OpcionPersona[]; yoId: string }) {
   const [tipo, setTipo] = useState<"fondo" | "cadena">("fondo");
-  const [marcados, setMarcados] = useState<string[]>([]);
+  const [marcados, setMarcados] = useState<string[]>(personas.some((p) => p.id === yoId) ? [yoId] : []); // tú vas incluido por defecto
   const [estado, accion, pendiente] = useActionState<EstadoForm, FormData>(subirPagoPorVarios, {});
   const [comprimiendo, setComprimiendo] = useState(false);
   const [errorLocal, setErrorLocal] = useState("");
@@ -92,6 +92,13 @@ export default function PagoPorVarios({ personas, yoId }: { personas: OpcionPers
 
       <p className="rounded-2xl bg-background px-4 py-3 text-sm">
         Total que debe sumar tu transferencia: <span className="font-extrabold">{pesos(total)}</span>
+        {marcadosValidos.length > 0 && (
+          <span className="mt-1 block text-xs text-muted">
+            {marcadosValidos.some((p) => p.id === yoId)
+              ? `Tu parte (${pesos(montoDe(marcadosValidos.find((p) => p.id === yoId)!))})${marcadosValidos.length > 1 ? ` + ${marcadosValidos.length - 1} persona${marcadosValidos.length === 2 ? "" : "s"} más` : ""}`
+              : "No incluye tu propia cuota (desmarcada)."}
+          </span>
+        )}
       </p>
 
       <label className="block space-y-1">
