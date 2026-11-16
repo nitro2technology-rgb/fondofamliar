@@ -357,7 +357,7 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - Flujo de un asociado nuevo: Primer ingreso (celular) -> Completar cuenta (2 pasos) -> Inicio con el recorrido guiado.
 
 ---
-# ESTADO ACTUAL (cierre sesión 9, 2026-11-12) — LEER ESTO PRIMERO
+# (Superado por el estado de la sesión 10, al final de este archivo) ESTADO al cierre de la sesión 9, 2026-11-12
 **En producción** (`fondofamiliar.nitro2tech.com`, último commit de código `bc8a44d`). Migraciones 0001–0014 ejecutadas. Variables de Vercel (Supabase, Resend, CRON_SECRET) listas.
 
 **Construido en la sesión 9**: panel admin estilo usuario (Resumen · Pagos · Préstamos · Más), Pagos con pestañas Cuota/Préstamos, filtros Deben/Pagaron y subida manual de comprobantes (también de préstamos), detalle de cada socio (`/admin/socio/[id]`), cola de préstamos con votos y desembolso, cuotas informativas con botón de cobro, captura NU por rondas (se sube por adelantado) con historial, asistencia con multas cobrables y bloqueo de préstamo por multas/mora, solicitud rápida de préstamo en Inicio, cierre de ciclo con liquidación y PDF (plazo = un minuto antes de la última reunión), selector de archivos con vista previa, tutorial guiado en pantalla (asociado y admin), primer ingreso en 2 pasos (correo+contraseña, cuenta de pagos), limpieza de `entregas_cadena`.
@@ -479,3 +479,37 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - Préstamos: descripción opcional al aprobar/rechazar (`votos_prestamo.comentario`; la ve el solicitante en su historial y en el aviso) y nota interna editable (`prestamos.nota`, `NotaPrestamo.tsx`, solo directivos). Migración **0022_notas_prestamos.sql**: falta ejecutarla. Se pidió borrar la solicitud de prueba de $300.000 de Nicolás (id 0c5059ef-0f47-45bb-93f7-89b5222f66df), rechazada.
 
 - Correo de bienvenida al completar la cuenta (`plantillaBienvenida` en `lib/correo.ts`, enviado desde `completarCuenta`): encabezado con el logo (`public/logo/logo-correo.png`, PNG porque Gmail/Outlook no muestran SVG), resumen de lo que pueden hacer y botón a la app. No incluye la contraseña.
+
+---
+
+# ESTADO ACTUAL (cierre sesión 10, 2026-11-13) — LEER ESTO PRIMERO
+
+**La app está en producción y ya se envió a los 19 asociados** (fondofamiliar.nitro2tech.com). Último commit subido: `8c7cd59` (correo de bienvenida). Migraciones ejecutadas por el usuario: 0001–0022. Próxima: 0023. No quedan datos de prueba en la base (se verificó: solo los 6 préstamos vigentes del Excel; se borraron la solicitud de prueba y los avisos de prueba).
+
+**Construido en la sesión 10 (resumen)**: PWA instalable, logo «Brote F» y paleta verde/ámbar en todo, 4x1000 (primera cuota, también en los 6 préstamos del Excel), interés mensual el día del desembolso, push + bandeja de avisos (campana desplegable en vivo, botón «Probar»), fotos de perfil y Recuerdos, splash de iPhone, respaldo semanal (domingos, bucket `respaldos` + correo al fiscal + descarga manual), cerrar/reabrir ciclo con avisos a 30/7/1 días, avisos reforzados (reunión y préstamo 7 días antes con correo a 7 y 1 día y el día del pago de préstamo; multas cada semana), pago en efectivo/de varios con un solo comprobante y multas verificadas dentro del pago, descripción al aprobar/rechazar préstamos + nota interna del préstamo, primer ingreso con paso de notificaciones y ventana central «Activa las notificaciones» con la app instalada, correo de bienvenida con logo, estructura de pantalla móvil (`Cascaron.tsx`: menú de navegación **arriba**, translúcido, contenido debajo).
+
+**Decisiones del usuario/directivos**: mora = 4 % sobre monto + interés pendiente (ya implementado); tope $1.000.000; un solo préstamo activo por persona; la usura no aplica (fondo familiar); los pagos de préstamo siempre son por transferencia (no hay flujo de efectivo grupal para préstamos); el menú va arriba porque en Safari instalado la ventana mide 47 px menos que la pantalla (franja inferior inutilizable).
+
+**Pendiente para la próxima sesión (no urgente)**
+1. Vigilar el lanzamiento: fallas que reporten los asociados (pedir pantallazo/mensaje de error); confirmar que el primer ingreso y el correo de bienvenida funcionan en celulares de otros; confirmar el cron de mañana 14-nov a las 7 a. m. y el correo del respaldo del primer domingo (15-nov).
+2. Mejoras propuestas (en orden): aviso a directivos si falla el cron/respaldo; lista en Asociados de quién activó cuenta y notificaciones; reporte mensual por correo al fiscal; pantalla de bitácora de auditoría; pruebas automáticas de las cuentas de préstamo (interés, mora, 4x1000, cierre); notificaciones por tipo; mostrar la descripción de un préstamo aprobado mientras espera desembolso.
+3. Registrar los pagos de la reunión del 13-nov en Admin → Pagos (si no se hizo).
+
+## Sesión 11 (2026-11-16) — Pago por varios, préstamo manual y recibos del mes (subido: `19ceba5`, `0e42985`)
+**Contexto**: el lanzamiento funcionó bien; el problema era que algunas personas pagan por otras y se descuadraba el control.
+
+**Hecho (sin migración nueva)**
+- **Pagar por varios (asociado)**: en `/pagos`, con cuota pendiente, dos botones arriba: «Registrar pago solo para mí» (flujo de siempre) y «Registrar pago para mí y más usuarios» (`ModoPago.tsx`, `PagoPorVarios.tsx`). Se elige fondo o cadena, se marcan las personas (con mes y monto de cada una y el total que debe sumar la transferencia), nota opcional y UN comprobante. Acción `subirPagoPorVarios` (`lib/acciones.ts`): lo registra en la cuota pendiente más antigua de cada persona, con `subido_por` y `recolector_id` = quien paga; omite quienes ya estén aprobados o no deban esa parte; avisa por push a los directivos. También aparece cuando quien paga está al día.
+- **Admin > Pagos**: cada persona queda con su pago pendiente (mismo comprobante) para aprobar uno por uno. La etiqueta «Efectivo recolectado por» pasó a «Pago agrupado, transferido por X».
+- **Préstamo manual (admin)**: botón «Registrar préstamo manual» en Admin > Préstamos (`PrestamoManual.tsx`, acción `registrarPrestamoManual`). Crea el préstamo ya `vigente` con fecha de desembolso elegida (define el día de pago mensual), movimiento de desembolso, externo y nota opcionales, interruptor de 4x1000 (activo por defecto). Sin votación. Solo se listan asociados sin otro préstamo en curso. Avisa al asociado por push.
+- **Recibos de la cadena**: quien tiene el turno ve `/recibos` durante todo su mes aunque ya haya confirmado todo (antes desaparecía), solo con los comprobantes de ese mes, para llevar control. Si el mes termina con pagos sin confirmar, sigue visible hasta confirmarlos (`turnoPorConfirmar` en `lib/recibos.ts`). La tarjeta de Inicio cambia el texto cuando todo está confirmado.
+
+**Pendiente**
+- Probar en local/producción: pago por varios (asociado) -> aprobación en Admin > Pagos; préstamo manual; recibos del receptor.
+- Informar a los 19 de las novedades (pagar por varios y vista de recibos del mes).
+- Pendientes anteriores (ver «ESTADO ACTUAL»): vigilar lanzamiento, mejoras propuestas, registrar pagos de la reunión del 13-nov.
+
+**Sesión 11 (cont.) — 4x1000 en la caja, vista de ejemplo y usuario de prueba**
+- Migración **0023_caja_con_4x1000.sql** (ejecutada): `caja_disponible()` descuenta el 4x1000 al desembolsar (0,4 %, préstamos con `cobrar_4x1000`), lo devuelve al registrarse el `reembolso_4x1000` y reserva el de los aprobados sin desembolsar. Tras ejecutarla la caja dio $852.800. Próxima migración: 0024.
+- `/recibos` para directivos sin turno: vista de ejemplo en solo lectura de lo que ve quien recibe este mes (`receptorDelMes` en `lib/recibos.ts`; prop `soloLectura` en `FilaRecibo`).
+- **Usuario de prueba** (existe en la base compartida con producción): `prueba@fondofamiliar.nitro2tech.com`, asociado activo, sin cuotas ni turno. Su id está en `.env.local` como `PRUEBA_TURNO_ID`: SOLO en desarrollo (`NODE_ENV=development`) `esSimulacionTurno` le muestra Inicio y `/recibos` como si tuviera el turno del mes, en solo lectura. **Pendiente: eliminarlo (Auth + perfil) cuando termine de probar.**

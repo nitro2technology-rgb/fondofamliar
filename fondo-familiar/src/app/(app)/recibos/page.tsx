@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requerirPerfil } from "@/lib/auth";
-import { turnoPorConfirmar } from "@/lib/recibos";
+import { esSimulacionTurno, receptorDelMes, turnoPorConfirmar } from "@/lib/recibos";
 import { mesLargo, pesos } from "@/lib/format";
 import FilaRecibo from "./FilaRecibo";
 
@@ -16,7 +16,16 @@ export default function Recibos() {
 
 async function Contenido() {
   const perfil = await requerirPerfil();
-  const turno = await turnoPorConfirmar(perfil.id);
+  let turno = await turnoPorConfirmar(perfil.id);
+  // Vista de ejemplo: un directivo sin turno ve la pantalla tal como la ve quien recibe este mes (solo lectura).
+  let ejemploDe: string | null = esSimulacionTurno(perfil.id) && turno ? ((await receptorDelMes())?.nombre ?? "quien tiene el turno") : null;
+  if (!turno && ["tesorero", "contador", "fiscal"].includes(perfil.rol)) {
+    const receptor = await receptorDelMes();
+    if (receptor) {
+      turno = await turnoPorConfirmar(receptor.id);
+      ejemploDe = turno ? receptor.nombre : null;
+    }
+  }
   // Solo se muestra durante el mes de tu turno (o mientras queden pagos sin confirmar).
   if (!turno) redirect("/");
 
@@ -26,6 +35,11 @@ async function Contenido() {
         ← Inicio
       </Link>
       <h1 className="text-3xl font-bold tracking-tight">Confirmar pagos</h1>
+      {ejemploDe && (
+        <p className="rounded-2xl bg-amber/15 px-4 py-3 text-sm text-amber">
+          Vista de ejemplo: así la ve {ejemploDe}, quien tiene el turno este mes. Aquí solo puedes mirar; los pagos se aprueban en Admin → Pagos.
+        </p>
+      )}
       <p className="text-sm text-muted">
         Es tu turno de cadena ({mesLargo(turno.periodo)}). Aquí ves los comprobantes de este mes para llevar el control; confirma si recibiste el dinero.
       </p>
@@ -49,6 +63,7 @@ async function Contenido() {
             estadoInicial={f.estado}
             url={f.url}
             confirmadoPorMi={f.confirmadoPorMi}
+            soloLectura={!!ejemploDe}
           />
         ))}
       </div>

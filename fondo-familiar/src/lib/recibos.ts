@@ -72,10 +72,24 @@ export async function detalleCadena(periodo: string, receptorId: string) {
   };
 }
 
+// Quién tiene el turno del mes en curso (para que los directivos vean la pantalla como la ve el receptor).
+export async function receptorDelMes() {
+  const mes = hoyColombia().slice(0, 7);
+  const { data } = await clienteAdmin().from("cadena_turnos").select("asociado_id, nombre_listado, fecha_reunion");
+  const t = (data ?? []).find((x) => x.fecha_reunion.slice(0, 7) === mes);
+  return t ? { id: t.asociado_id as string, nombre: t.nombre_listado as string } : null;
+}
+
 // Turno de cadena del asociado para llevar el control de los pagos que recibe.
 // Durante todo su mes se ve siempre (aunque ya estén todos confirmados) y solo con los comprobantes de ese mes.
 // Si termina el mes con pagos sin confirmar, sigue apareciendo hasta confirmarlos.
-export async function turnoPorConfirmar(asociadoId: string) {
+// Solo en desarrollo: el usuario de prueba (PRUEBA_TURNO_ID) ve la pantalla como quien tiene el turno del mes, en solo lectura.
+export const esSimulacionTurno = (asociadoId: string) =>
+  process.env.NODE_ENV === "development" && !!process.env.PRUEBA_TURNO_ID && process.env.PRUEBA_TURNO_ID === asociadoId;
+
+export async function turnoPorConfirmar(asociadoIdReal: string) {
+  let asociadoId = asociadoIdReal;
+  if (esSimulacionTurno(asociadoIdReal)) asociadoId = (await receptorDelMes())?.id ?? asociadoIdReal;
   const { data: turnos } = await clienteAdmin()
     .from("cadena_turnos")
     .select("turno, fecha_reunion")

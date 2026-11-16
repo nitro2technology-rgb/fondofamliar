@@ -20,7 +20,9 @@ export default function FilaRecibo({
   estadoInicial,
   url,
   confirmadoPorMi,
+  soloLectura = false,
 }: {
+  soloLectura?: boolean;
   reporteId: string | null;
   nombre: string;
   monto: string;
@@ -65,17 +67,17 @@ export default function FilaRecibo({
       {reporteId && (
         <div className="flex flex-wrap items-center gap-2">
           {url && <VisorImagen url={url} texto="Ver captura" />}
-          {estado !== "confirmado" && (
+          {!soloLectura && estado !== "confirmado" && (
             <button type="button" disabled={enviando} onClick={() => decidir("recibido")} className={`${boton} bg-accent text-accent-fg`}>
               Recibí
             </button>
           )}
-          {estado === "por_confirmar" && (
+          {!soloLectura && estado === "por_confirmar" && (
             <button type="button" disabled={enviando} onClick={() => decidir("no_recibido")} className={`${boton} border border-card-border text-danger`}>
               No lo recibí
             </button>
           )}
-          {estado === "confirmado" && mio && (
+          {!soloLectura && estado === "confirmado" && mio && (
             <button type="button" disabled={enviando} onClick={() => decidir("deshacer")} className={`${boton} border border-card-border text-muted`}>
               Deshacer
             </button>
