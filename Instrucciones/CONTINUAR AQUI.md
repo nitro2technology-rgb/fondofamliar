@@ -553,4 +553,24 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - Pendiente: ejecutar 0025, commit/push, probar con una solicitud adicional; el desembolso no revalida el tope (se validó al radicar). El mensaje a directivos (`Mensaje para directivos.md`, punto 5) quedó desactualizado.
 - **Saldo esperado en Nu corregido**: el aporte tecnológico ($20.000 x 19 = $380.000) fue un extra para el desarrollador de la app; NUNCA estuvo en la cuenta Nu ni es del fondo. Migración **0026_saldo_sin_aporte_tecnologico.sql** (`saldo_calculado` solo suma el aporte inicial): **falta ejecutarla en el proyecto correcto**. Con los datos del 2026-11-16: esperado $178.500 vs. real $178.414,57 (dif. $85,43, quizá 4x1000 de premios de bingo y rendimientos). Disponible para prestar $150.000 (cuadra). Nota: la cifra "$480.000" de la conciliación de octubre que figura arriba incluía por error el tecnológico (aportes iniciales $1.900.000 - $1.800.000 = $100.000). Los juegos sobrantes ($28.500) están en el saldo Nu pero no en lo prestable (son utilidad del cierre). La 0026 también resta el 4x1000 (0,4 %) de cada premio de bingo: esperado $178.386 vs. real $178.414,57 (sobran $28,57, probablemente rendimientos de Nu).
 - **Regla (usuario, 2026-11-16)**: todo lo que esté en la cuenta Nu se presta; las utilidades (intereses, mora, multas, sobrante de juegos) se reparten al final. Migración **0027_caja_con_juegos_y_multas.sql** (falta ejecutarla): `caja_disponible()` ahora suma juegos recaudados y multas cobradas y resta premios de bingo con su 4x1000. Con los datos del 2026-11-16 pasa de $150.000 a $178.386 (= saldo esperado en Nu). La cadena sigue fuera (se paga directo al receptor). El tecnológico nunca entra.
+- **Pago por varios**: la casilla del propio usuario va siempre marcada y bloqueada (el total = su parte + la de los demás; solo falta si no le toca pagar esa parte, p. ej. su mes de cadena o ya pagó). Commit `cfe1569`.
+
+---
+
+# ESTADO ACTUAL (cierre sesión 12, 2026-11-16) — LEER ESTO PRIMERO (reemplaza al de la sesión 11)
+
+**En producción** (fondofamiliar.nitro2tech.com). Último commit de código: `cfe1569`. Migraciones ejecutadas: 0001–0027 (próxima: 0028). Ojo: el usuario ejecutó una vez una migración en un proyecto de Supabase equivocado; verificar siempre que sea el de `NEXT_PUBLIC_SUPABASE_URL`.
+
+**Hecho en la sesión 12**
+- **Varios préstamos a la vez** por asociado (0025): el tope de $1.000.000 aplica al total (capital pendiente + solicitudes); cada préstamo paga su interés el día de su propio desembolso. Pantallas, pagos y PDF adaptados.
+- **Contabilidad** (0026, 0027): el aporte tecnológico ($380.000) nunca estuvo en Nu ni es del fondo (fuera del saldo); el 4x1000 de los premios de bingo se resta; `caja_disponible()` = todo lo que hay en la cuenta (ahorro + inicial + juegos sobrantes + multas + intereses/mora/abonos/reembolso 4x1000 - desembolsos - su 4x1000 - premios - aprobados). Con los datos del 16-nov: disponible $178.386 y saldo Nu real $178.414,57 (dif. $28,57, probablemente rendimientos). Cadena fuera (se paga directo al receptor).
+- Pago por varios con el propio pago siempre incluido.
+
+**Pendiente**
+1. Freddy: enviar el Excel actualizado para comparar contra la base (préstamos, fechas, pagos de cuotas, saldo NU).
+2. Verificar que el Resumen admin muestre $178.386 y la conciliación de la captura Nu dé una diferencia de unos $28.
+3. El desembolso no revalida el tope por persona (solo se valida al radicar).
+4. Verificar el QR de `public/qr-fondo.png`; registrar bingos y pagos de la reunión del 13-nov; avisar a los 19 de las novedades (varios préstamos, pagar por varios, recibos, cuenta del fondo).
+5. Decidir si los asociados ven el total de juegos. Mejoras de la sesión 10 (aviso si falla el cron, quién activó cuenta, reporte mensual, bitácora de auditoría, pruebas automáticas de cuentas de préstamo).
+6. Sin commit a propósito: cambios en `Instrucciones/Pantallazos` (el pantallazo del QR tiene datos personales) y `fondo-familiar/scripts/usuario-prueba.mjs`.
 
