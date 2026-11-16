@@ -512,7 +512,7 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 **Sesión 11 (cont.) — 4x1000 en la caja, vista de ejemplo y usuario de prueba**
 - Migración **0023_caja_con_4x1000.sql** (ejecutada): `caja_disponible()` descuenta el 4x1000 al desembolsar (0,4 %, préstamos con `cobrar_4x1000`), lo devuelve al registrarse el `reembolso_4x1000` y reserva el de los aprobados sin desembolsar. Tras ejecutarla la caja dio $852.800. Próxima migración: 0024.
 - `/recibos` para directivos sin turno: vista de ejemplo en solo lectura de lo que ve quien recibe este mes (`receptorDelMes` en `lib/recibos.ts`; prop `soloLectura` en `FilaRecibo`).
-- **Usuario de prueba** (existe en la base compartida con producción): `prueba@fondofamiliar.nitro2tech.com`, asociado activo, sin cuotas ni turno. Su id está en `.env.local` como `PRUEBA_TURNO_ID`: SOLO en desarrollo (`NODE_ENV=development`) `esSimulacionTurno` le muestra Inicio y `/recibos` como si tuviera el turno del mes, en solo lectura. **Pendiente: eliminarlo (Auth + perfil) cuando termine de probar.**
+- **Usuario de prueba** (existe en la base compartida con producción): `prueba@fondofamiliar.nitro2tech.com`, asociado activo, sin cuotas ni turno. Su id está en `.env.local` como `PRUEBA_TURNO_ID`: SOLO en desarrollo (`NODE_ENV=development`) `esSimulacionTurno` le muestra Inicio y `/recibos` como si tuviera el turno del mes, en solo lectura. **ELIMINADO el 2026-11-16** (ya no existe en la base ni en `.env.local`). Para volver a crearlo: desde `fondo-familiar/` ejecutar `node scripts/usuario-prueba.mjs crear` (genera clave nueva, guarda `PRUEBA_TURNO_ID` en `.env.local` y se reinicia `npm run dev`); para quitarlo otra vez: `node scripts/usuario-prueba.mjs eliminar`.
 
 - **Cuenta del fondo en Pagar**: tarjeta «Paga a esta cuenta» (`components/CuentaFondo.tsx`) arriba de `/pagos` (cuota, préstamo y pago por varios) con el QR de Nu (`public/qr-fondo.png`, descargable), llave, cuenta de ahorros Nu y C.C. del fondo, cada una con botón «Copiar». Aclara que la cadena se paga a quien tiene el turno. Pendiente: verificar escaneando el QR; si no lee bien, reemplazar por el original.
 
@@ -523,3 +523,25 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - Pendiente: si se quiere, mostrar el total de juegos a los asociados.
 
 - **Juegos separado de Asistencia**: nueva pantalla `/admin/juegos` (total del ciclo, selector de reunión y bingos con comprobante); `/admin/asistencia` queda solo con asistencia y multas. Botón circular «Juegos» en el Resumen admin y entradas separadas en Admin > Más.
+
+---
+
+# ESTADO ACTUAL (cierre sesión 11, 2026-11-16) — LEER ESTO PRIMERO
+
+**En producción** (fondofamiliar.nitro2tech.com). Último commit de código subido: `30d6f2f`. Migraciones ejecutadas: 0001–0024 (próxima: 0025). Usuario de prueba eliminado (se recrea con `node scripts/usuario-prueba.mjs crear`, ver la nota de la sesión 11).
+
+**Hecho en la sesión 11**: pago de cuota por varios con un solo comprobante (asociado), registro manual de préstamos (admin), recibos de la cadena siempre visibles en el mes del turno (con vista de ejemplo para directivos), 4x1000 reflejado en la caja disponible (0023), tarjeta «Paga a esta cuenta» con QR/llave/cuenta/C.C. copiables, bingos con premios y comprobantes + total recaudado en juegos (0024), Juegos como pantalla propia con acceso rápido en el Resumen, separado de Asistencia.
+
+**PENDIENTE PRINCIPAL — datos del Excel (Freddy)**
+1. Freddy debe enviar el **Excel actualizado con los préstamos y todo lo demás** para ajustar la aplicación y sus datos: al parecer los datos cargados **no cuadran bien** con los suyos.
+2. Al recibirlo: comparar contra la base (préstamos vigentes y fechas de desembolso, aportes únicos, pagos de cuotas, saldo NU vs. `saldo_calculado`, caja disponible) y corregir con SQL/migración. Cuidar: los 6 préstamos de la carga 0011 tienen `cobrar_4x1000 = true` desde 0021 (descuentan 0,4 % de la caja hasta que se reembolsa) y su día de pago mensual sale de `desembolsado_en`; los pagos históricos de cuotas no están migrados y no tendrán comprobante.
+3. Contrastar con la captura NU de octubre (debía dar $480.000 antes del 4x1000 de esos desembolsos).
+
+**Otros pendientes**
+- Verificar escaneando que el QR recortado (`public/qr-fondo.png`) se lea bien; si no, reemplazarlo por el original.
+- Registrar en Admin > Juegos los premios de los bingos de la reunión del 13-nov (con comprobantes) y los pagos de esa reunión en Admin > Pagos, si no se ha hecho.
+- Avisar a los 19 de las novedades (pagar por varios, recibos del mes del turno, cuenta del fondo en Pagar).
+- Probar en el celular lo nuevo y revisar los 5 botones del Resumen admin.
+- Decidir si los asociados ven el total recaudado en juegos (hoy solo directivos).
+- Mejoras propuestas de la sesión 10 (aviso si falla el cron/respaldo, lista de quién activó cuenta, reporte mensual al fiscal, bitácora de auditoría, pruebas automáticas de cuentas de préstamo).
+- **Sin commit**: esta bitácora, `fondo-familiar/scripts/usuario-prueba.mjs` y el cambio de la carpeta `Pantallazos` (el pantallazo del QR tiene datos personales: no subirlo al repo).
