@@ -8,6 +8,9 @@ import { resumenPrestamo } from "@/lib/cuentas";
 import VisorImagen from "@/components/VisorImagen";
 import FormularioPago from "./FormularioPago";
 import FormularioPagoPrestamo from "./FormularioPagoPrestamo";
+import ModoPago from "./ModoPago";
+import PagoPorVarios, { type OpcionPersona } from "./PagoPorVarios";
+import { clienteAdmin } from "@/lib/supabase/admin";
 
 export default function Pagos({ searchParams }: PageProps<"/pagos">) {
   return (
@@ -89,6 +92,27 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/pagos">["
     }),
   );
 
+  // Personas por las que se puede pagar con un solo comprobante: su cuota pendiente más antigua.
+  const { data: pendientesTodos } = await clienteAdmin()
+    .from("cuotas")
+    .select("asociado_id, periodo, ahorro, cadena, juegos, perfiles!cuotas_asociado_id_fkey(nombre)")
+    .neq("estado", "pagada")
+    .order("periodo");
+  const vistos = new Set<string>();
+  const personasVarios: OpcionPersona[] = [];
+  for (const c of pendientesTodos ?? []) {
+    if (vistos.has(c.asociado_id)) continue;
+    vistos.add(c.asociado_id);
+    personasVarios.push({
+      id: c.asociado_id,
+      nombre: (c.perfiles as unknown as { nombre: string } | null)?.nombre ?? "—",
+      mes: mesLargo(c.periodo),
+      fondo: Number(c.ahorro) + Number(c.juegos),
+      cadena: Number(c.cadena),
+    });
+  }
+  personasVarios.sort((a, b) => (a.id === perfil.id ? -1 : b.id === perfil.id ? 1 : a.nombre.localeCompare(b.nombre, "es")));
+
   return (
     <div className="space-y-5">
       <Link href="/" className="text-sm text-accent underline">
@@ -97,7 +121,10 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/pagos">["
       <h1 className="text-3xl font-extrabold tracking-tight">Registrar pago</h1>
 
       {!hayCuota && !vigente ? (
-        <p className="rounded-[28px] bg-card p-5 text-muted">No tienes cuotas pendientes ni préstamo. ¡Estás al día!</p>
+        <>
+          <p className="rounded-[28px] bg-card p-5 text-muted">No tienes cuotas pendientes ni préstamo. ¡Estás al día!</p>
+          {personasVarios.length > 0 && <PagoPorVarios personas={personasVarios} yoId={perfil.id} />}
+        </>
       ) : preguntar ? (
         <section className="space-y-3">
           <p className="text-muted">¿Qué deseas pagar?</p>
@@ -182,6 +209,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/pagos">["
                 Sube la captura de cada transferencia. Un administrador la revisa y, cuando la apruebe, tu cuota queda pagada.
               </p>
 
+              <ModoPago personas={personasVarios} yoId={perfil.id}>
               <FormularioPago
                 key={`${cuota.id}-fondo`}
                 cuotaId={cuota.id}
@@ -210,6 +238,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/pagos">["
               ) : (
                 <p className="rounded-[28px] bg-card p-5 text-sm text-muted">Este mes tienes el turno de la cadena: no pagas esa parte.</p>
               )}
+              </ModoPago>
 
               <section className="space-y-2 pt-2">
                 <h2 className="px-1 text-lg font-semibold">Resumen de mis cuotas</h2>

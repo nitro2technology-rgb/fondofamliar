@@ -539,6 +539,165 @@ export async function subirPagoGrupal(_: EstadoForm, formData: FormData): Promis
   return { ok: true };
 }
 
+// Un asociado paga por sí mismo y por otros con una sola transferencia: sube el comprobante una vez y marca
+// a quiénes cubre. Se registra en la cuota pendiente más antigua de cada uno y los directivos aprueban cada pago.
+export async function subirPagoPorVarios(_: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const perfil = await requerirPerfil();
+  const tipo = String(formData.get("tipo") ?? "");
+  const archivo = formData.get("archivo");
+  const ids = [...new Set(formData.getAll("asociados").map(String))];
+  const nota = String(formData.get("descripcion") ?? "").trim().slice(0, 120);
+
+  if (tipo !== "fondo" && tipo !== "cadena") return { error: "Tipo de pago no válido." };
+  if (ids.length === 0) return { error: "Marca al menos una persona." };
+  if (ids.length > 25) return { error: "Demasiadas personas en un solo pago." };
+  if (!(archivo instanceof File) || archivo.size === 0) return { error: "Adjunta la captura del pago." };
+  if (!archivo.type.startsWith("image/")) return { error: "El archivo debe ser una imagen (pantallazo o foto del comprobante)." };
+  if (archivo.size > 8 * 1024 * 1024) return { error: "La imagen pesa más de 8 MB." };
+
+  const db = clienteAdmin();
+  const { data: cuotasTodas } = await db
+    .from("cuotas")
+    .select("id, asociado_id, periodo, ahorro, cadena, juegos, estado")
+    .in("asociado_id", ids)
+    .neq("estado", "pagada")
+    .order("periodo");
+  // Cuota pendiente más antigua de cada persona.
+  const cuotas = ids
+    .map((id) => (cuotasTodas ?? []).find((c) => c.asociado_id === id))
+    .filter((c): c is NonNullable<typeof c> => !!c);
+
+  const descripcion = nota || `Pagó ${perfil.nombre} por ${ids.length === 1 ? "1 persona" : `${ids.length} personas`}`;
+  let registrados = 0;
+  let omitidos = ids.length - cuotas.length;
+  for (const cuota of cuotas) {
+    const monto = tipo === "fondo" ? Number(cuota.ahorro) + Number(cuota.juegos) : Number(cuota.cadena);
+    if (monto <= 0) {
+      omitidos++;
+      continue;
+    }
+    const { data: previo } = await db.from("pagos_reportados").select("estado, ruta_archivo").eq("cuota_id", cuota.id).eq("tipo", tipo).maybeSingle();
+    if (previo?.estado === "aprobado") {
+      omitidos++;
+      continue;
+    }
+    const ruta = `${cuota.asociado_id}/${cuota.id}-${tipo}-${Date.now()}.jpg`;
+    const { error: errorSubida } = await db.storage.from("comprobantes-pago").upload(ruta, archivo);
+    if (errorSubida) {
+      omitidos++;
+      continue;
+    }
+    const { error } = await db.from("pagos_reportados").upsert(
+      {
+        cuota_id: cuota.id,
+        asociado_id: cuota.asociado_id,
+        tipo,
+        monto,
+        ruta_archivo: ruta,
+        subido_por: perfil.id,
+        descripcion,
+        recolector_id: perfil.id,
+        estado: "pendiente",
+        nota: null,
+        creado_en: new Date().toISOString(),
+        revisado_por: null,
+        revisado_en: null,
+      },
+      { onConflict: "cuota_id,tipo" },
+    );
+    if (error) {
+      await db.storage.from("comprobantes-pago").remove([ruta]);
+      omitidos++;
+      continue;
+    }
+    if (previo?.ruta_archivo) await db.storage.from("comprobantes-pago").remove([previo.ruta_archivo]);
+    registrados++;
+  }
+
+  if (registrados > 0) {
+    await enviarPushAdmins({
+      titulo: "Pagos por revisar",
+      cuerpo: `${perfil.nombre} subió un comprobante que cubre ${registrados} pago${registrados === 1 ? "" : "s"}.`,
+      url: "/admin/pagos",
+      tag: "pago-revisar",
+    }).catch(() => 0);
+  }
+  revalidatePath("/admin/pagos");
+  revalidatePath("/pagos");
+  if (registrados === 0) return { error: "No se registró ninguno (ya estaban pagados, aprobados o no aplica esa parte)." };
+  if (omitidos > 0) return { error: `Se registraron ${registrados}; ${omitidos} se omitieron porque ya estaban pagados, aprobados o no aplica esa parte.` };
+  return { ok: true };
+}
+
+// Registro manual de un préstamo que no se pidió por la app (un directivo lo entrega y lo anota ya desembolsado).
+export async function registrarPrestamoManual(_: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const admin = await requerirAdmin();
+  const asociadoId = String(formData.get("asociado_id") ?? "");
+  const monto = montoDe(formData.get("monto"));
+  const fecha = String(formData.get("fecha") ?? "");
+  const externo = String(formData.get("externo") ?? "").trim();
+  const nota = String(formData.get("nota") ?? "").trim().slice(0, 500) || null;
+  const cobrar4x1000 = formData.get("cobrar_4x1000") === "on";
+
+  if (!asociadoId) return { error: "Elige el asociado." };
+  if (!monto || monto < 10000) return { error: "Escribe un monto de al menos $10.000." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || fecha > hoyColombia()) return { error: "La fecha del desembolso no es válida (no puede ser futura)." };
+
+  const db = clienteAdmin();
+  const { data: socio } = await db.from("perfiles").select("id, nombre").eq("id", asociadoId).maybeSingle();
+  if (!socio) return { error: "No se encontró al asociado." };
+  const { data: enCurso } = await db
+    .from("prestamos")
+    .select("id")
+    .eq("asociado_id", asociadoId)
+    .in("estado", ["radicado", "aprobado", "vigente"])
+    .limit(1);
+  if ((enCurso ?? []).length > 0) return { error: `${socio.nombre} ya tiene una solicitud o un préstamo en curso.` };
+
+  let externoId: string | null = null;
+  if (externo) {
+    const { data, error } = await db.from("externos").insert({ nombre: externo, padrino_id: asociadoId }).select("id").single();
+    if (error) return { error: "No se pudo registrar al externo." };
+    externoId = data.id;
+  }
+
+  const { data: prestamo, error } = await db
+    .from("prestamos")
+    .insert({
+      asociado_id: asociadoId,
+      externo_id: externoId,
+      monto,
+      estado: "vigente",
+      desembolsado_en: fecha,
+      cobrar_4x1000: cobrar4x1000,
+      nota,
+    })
+    .select("id")
+    .single();
+  if (error || !prestamo) {
+    return { error: error?.code === "23505" ? `${socio.nombre} ya tiene un préstamo en curso.` : "No se pudo registrar el préstamo." };
+  }
+  const { error: errorMov } = await db
+    .from("movimientos_prestamo")
+    .insert({ prestamo_id: prestamo.id, tipo: "desembolso", monto, fecha, registrado_por: admin.id });
+  if (errorMov) {
+    await db.from("prestamos").delete().eq("id", prestamo.id);
+    return { error: "No se pudo registrar el desembolso." };
+  }
+
+  await enviarPush([asociadoId], {
+    titulo: "Se registró tu préstamo",
+    cuerpo: `Se registró un préstamo de ${pesos(monto)}. Pagarás el interés cada mes, el día ${Number(fecha.slice(8, 10))}.`,
+    url: "/prestamos",
+    tag: "prestamo-desembolso",
+  }).catch(() => 0);
+  revalidatePath("/admin/prestamos");
+  revalidatePath("/admin");
+  revalidatePath("/prestamos");
+  revalidatePath("/");
+  return { ok: true };
+}
+
 // Un administrador aprueba, rechaza o reabre un pago reportado. Cuando el fondo y (si corresponde)
 // la cadena de la cuota están aprobados, la cuota pasa a pagada y cambia el estado de cuenta.
 export async function revisarPago(

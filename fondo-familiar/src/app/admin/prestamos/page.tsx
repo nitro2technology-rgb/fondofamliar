@@ -7,6 +7,7 @@ import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { desembolsarPrestamo, votarPrestamo } from "@/lib/acciones";
 import NotaPrestamo from "./NotaPrestamo";
+import PrestamoManual from "./PrestamoManual";
 import { cuentasPrestamo } from "@/lib/prestamos";
 import { fechaCorta, hoyColombia, pesos } from "@/lib/format";
 
@@ -57,6 +58,10 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
   const multasDe = (id: string) =>
     (multasPend ?? []).filter((m) => m.asociado_id === id).reduce((s, m) => s + Number(m.monto), 0);
 
+  const { data: activosPerfiles } = await supabase.from("perfiles").select("id, nombre").eq("activo", true).order("nombre");
+  const conPrestamo = new Set((activos ?? []).map((x) => x.asociado_id));
+  const sinPrestamo = (activosPerfiles ?? []).filter((x) => !conPrestamo.has(x.id));
+
   const cola = (activos ?? []).filter((x) => x.estado !== "vigente");
   const vigentes = (activos ?? []).filter((x) => x.estado === "vigente");
   const pedida = String((await searchParams).vista ?? "");
@@ -83,6 +88,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
         ← Resumen
       </Link>
       <h1 className="text-3xl font-bold tracking-tight">Préstamos</h1>
+      <PrestamoManual personas={sinPrestamo} hoy={hoy} />
 
       <section className="grid grid-cols-3 gap-2 text-center">
         <Dato t="Disponible" v={pesos(Math.max(0, cajaLibre))} destacado />

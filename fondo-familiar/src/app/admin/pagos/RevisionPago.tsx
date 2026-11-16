@@ -74,7 +74,7 @@ export default function RevisionPago({
       {cargadoPor && <p className="text-xs text-muted">Comprobante cargado por {cargadoPor}</p>}
       {(descripcion || recolector) && (
         <p className="text-xs text-muted">
-          {recolector && <>Efectivo recolectado por <span className="font-medium text-foreground">{recolector}</span></>}
+          {recolector && <>Pago agrupado, transferido por <span className="font-medium text-foreground">{recolector}</span></>}
           {recolector && descripcion && " · "}
           {descripcion}
         </p>
