@@ -11,7 +11,7 @@ export type OpcionPersona = { id: string; nombre: string; mes: string; fondo: nu
 // Un solo comprobante para pagar la cuota de uno mismo y de otras personas.
 export default function PagoPorVarios({ personas, yoId }: { personas: OpcionPersona[]; yoId: string }) {
   const [tipo, setTipo] = useState<"fondo" | "cadena">("fondo");
-  const [marcados, setMarcados] = useState<string[]>(personas.some((p) => p.id === yoId) ? [yoId] : []); // tú vas incluido por defecto
+  const [marcados, setMarcados] = useState<string[]>([]);
   const [estado, accion, pendiente] = useActionState<EstadoForm, FormData>(subirPagoPorVarios, {});
   const [comprimiendo, setComprimiendo] = useState(false);
   const [errorLocal, setErrorLocal] = useState("");
@@ -19,7 +19,8 @@ export default function PagoPorVarios({ personas, yoId }: { personas: OpcionPers
 
   const montoDe = (p: OpcionPersona) => (tipo === "fondo" ? p.fondo : p.cadena);
   const aplicables = personas.filter((p) => montoDe(p) > 0);
-  const marcadosValidos = aplicables.filter((p) => marcados.includes(p.id));
+  // Tú siempre vas incluido (si tienes algo pendiente de este tipo); las demás personas se marcan a mano.
+  const marcadosValidos = aplicables.filter((p) => p.id === yoId || marcados.includes(p.id));
   const total = marcadosValidos.reduce((s, p) => s + montoDe(p), 0);
 
   function alternar(id: string) {
@@ -76,7 +77,8 @@ export default function PagoPorVarios({ personas, yoId }: { personas: OpcionPers
               <input
                 type="checkbox"
                 value={p.id}
-                checked={marcados.includes(p.id)}
+                checked={p.id === yoId || marcados.includes(p.id)}
+                disabled={p.id === yoId}
                 onChange={() => alternar(p.id)}
                 className="size-4 accent-[var(--accent)]"
               />
@@ -96,7 +98,7 @@ export default function PagoPorVarios({ personas, yoId }: { personas: OpcionPers
           <span className="mt-1 block text-xs text-muted">
             {marcadosValidos.some((p) => p.id === yoId)
               ? `Tu parte (${pesos(montoDe(marcadosValidos.find((p) => p.id === yoId)!))})${marcadosValidos.length > 1 ? ` + ${marcadosValidos.length - 1} persona${marcadosValidos.length === 2 ? "" : "s"} más` : ""}`
-              : "No incluye tu propia cuota (desmarcada)."}
+              : `${marcadosValidos.length} persona${marcadosValidos.length === 1 ? "" : "s"}`}
           </span>
         )}
       </p>
