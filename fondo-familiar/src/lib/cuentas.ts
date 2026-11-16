@@ -52,35 +52,43 @@ export async function estadoDeCuenta(asociadoId: string) {
   };
 }
 
-// Préstamo en curso del asociado (si lo hay) y lo que puede pedir.
+// Préstamos en curso del asociado (puede tener varios a la vez) y lo que todavía puede pedir.
+// El tope aplica al total que debe: capital pendiente de los vigentes + solicitudes radicadas/aprobadas.
 export async function resumenPrestamo(asociadoId: string) {
   const supabase = await crearClienteServidor();
-  const [{ data: prestamo }, { data: params }, { data: caja }] = await Promise.all([
+  const [{ data: lista }, { data: params }, { data: caja }] = await Promise.all([
     supabase
       .from("prestamos")
-      .select("id, estado, monto, desembolsado_en, cobrar_4x1000")
+      .select("id, estado, monto, desembolsado_en, cobrar_4x1000, radicado_en")
       .eq("asociado_id", asociadoId)
       .in("estado", ["radicado", "aprobado", "vigente"])
-      .maybeSingle(),
+      .order("radicado_en"),
     supabase.from("parametros").select("clave, valor").in("clave", ["interes_prestamo_pct", "interes_mora_pct", "tope_prestamo"]),
     supabase.rpc("caja_disponible"),
   ]);
   const p = Object.fromEntries((params ?? []).map((x) => [x.clave, Number(x.valor)]));
   const tope = p.tope_prestamo ?? 1_000_000;
-  const puedePedir = Math.min(tope, Math.max(0, Number(caja ?? 0)));
   const cajaLibre = Number(caja ?? 0);
-  if (!prestamo) return { prestamo: null, tope, puedePedir, caja: cajaLibre };
 
-  const { data: movs } = await supabase
-    .from("movimientos_prestamo")
-    .select("tipo, monto, fecha")
-    .eq("prestamo_id", prestamo.id);
-  const cuentas = cuentasPrestamo(
-    prestamo.desembolsado_en,
-    movs ?? [],
-    hoyColombia(),
-    { interes: p.interes_prestamo_pct ?? 4, mora: p.interes_mora_pct ?? 4 },
-    prestamo.cobrar_4x1000,
-  );
-  return { prestamo: { ...prestamo, cuentas }, tope, puedePedir, caja: cajaLibre };
+  const vigentesIds = (lista ?? []).filter((x) => x.estado === "vigente").map((x) => x.id);
+  const { data: movs } = vigentesIds.length
+    ? await supabase.from("movimientos_prestamo").select("prestamo_id, tipo, monto, fecha").in("prestamo_id", vigentesIds)
+    : { data: [] };
+
+  const prestamos = (lista ?? []).map((x) => {
+    if (x.estado !== "vigente") return { ...x, cuentas: null };
+    const cuentas = cuentasPrestamo(
+      x.desembolsado_en,
+      (movs ?? []).filter((m) => m.prestamo_id === x.id),
+      hoyColombia(),
+      { interes: p.interes_prestamo_pct ?? 4, mora: p.interes_mora_pct ?? 4 },
+      x.cobrar_4x1000,
+    );
+    return { ...x, cuentas };
+  });
+
+  const comprometido = prestamos.reduce((s, x) => s + (x.cuentas ? x.cuentas.saldoCapital : Number(x.monto)), 0);
+  const cupo = Math.max(0, tope - comprometido); // lo que aún puede pedir según el tope
+  const puedePedir = Math.min(cupo, Math.max(0, cajaLibre));
+  return { prestamos, tope, comprometido, cupo, puedePedir, caja: cajaLibre };
 }

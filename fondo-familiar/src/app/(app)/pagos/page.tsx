@@ -31,7 +31,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/pagos">["
   const perfil = await requerirPerfil();
   const supabase = await crearClienteServidor();
 
-  const [{ data: cuotas }, { data: turnos }, { prestamo }] = await Promise.all([
+  const [{ data: cuotas }, { data: turnos }, { prestamos }] = await Promise.all([
     supabase
       .from("cuotas")
       .select("id, periodo, ahorro, cadena, juegos, estado")
@@ -42,7 +42,8 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/pagos">["
   ]);
   const todas = cuotas ?? [];
   const pendientes = todas.filter((c) => c.estado !== "pagada");
-  const vigente = prestamo?.estado === "vigente" && "cuentas" in prestamo ? prestamo : null;
+  const vigentes = prestamos.filter((x) => x.cuentas).map((x) => ({ ...x, cuentas: x.cuentas! }));
+  const hayPrestamo = vigentes.length > 0;
   const hoy = hoyColombia();
   const fechaDe = (periodo: string) =>
     (turnos ?? []).find((t) => t.fecha_reunion.slice(0, 7) === periodo.slice(0, 7))?.fecha_reunion ?? periodo;
@@ -51,9 +52,12 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/pagos">["
   const hayCuota = pendientes.length > 0;
   const params = await searchParams;
   const pedido = String(params.pago ?? "");
+  // Con varios préstamos vigentes, cada uno se paga por separado: se elige cuál (?id=) o es el único.
+  const idPedido = String(params.id ?? "");
+  const vigente = vigentes.find((x) => x.id === idPedido) ?? (vigentes.length === 1 ? vigentes[0] : null);
   const elegido: "cuota" | "prestamo" | null =
-    pedido === "prestamo" && vigente ? "prestamo" : pedido === "cuota" && hayCuota ? "cuota" : hayCuota && vigente ? null : vigente ? "prestamo" : hayCuota ? "cuota" : null;
-  const preguntar = elegido === null && hayCuota && !!vigente;
+    pedido === "prestamo" && hayPrestamo ? "prestamo" : pedido === "cuota" && hayCuota ? "cuota" : hayCuota && hayPrestamo ? null : hayPrestamo ? "prestamo" : hayCuota ? "cuota" : null;
+  const preguntar = elegido === null && hayCuota && hayPrestamo;
   const verPrestamo = elegido === "prestamo";
   // Solo la cuota inmediata (la más antigua sin pagar), no todas.
   const cuota = elegido === "cuota" ? pendientes[0] : undefined;
@@ -121,7 +125,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/pagos">["
       </Link>
       <h1 className="text-3xl font-extrabold tracking-tight">Registrar pago</h1>
 
-      {!hayCuota && !vigente ? (
+      {!hayCuota && !hayPrestamo ? (
         <>
           <p className="rounded-[28px] bg-card p-5 text-muted">No tienes cuotas pendientes ni préstamo. ¡Estás al día!</p>
           {personasVarios.length > 0 && (
@@ -136,7 +140,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/pagos">["
           <p className="text-muted">¿Qué deseas pagar?</p>
           {[
             { href: "/pagos?pago=cuota", titulo: "Cuota mensual", detalle: `${mesLargo(pendientes[0].periodo)} · vence ${fechaCorta(fechaDe(pendientes[0].periodo))}` },
-            { href: "/pagos?pago=prestamo", titulo: "Préstamo", detalle: "Interés, abono o pago total" },
+            { href: "/pagos?pago=prestamo", titulo: vigentes.length > 1 ? "Préstamos" : "Préstamo", detalle: vigentes.length > 1 ? "Elige cuál: interés, abono o pago total" : "Interés, abono o pago total" },
           ].map((o) => (
             <Link key={o.href} href={o.href} className="flex items-center justify-between rounded-[28px] bg-card p-5">
               <span>
@@ -149,7 +153,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/pagos">["
         </section>
       ) : (
         <>
-          {hayCuota && vigente && (
+          {hayCuota && hayPrestamo && (
             <Link href="/pagos" className="inline-block text-sm text-accent underline">
               Cambiar: pagar {verPrestamo ? "cuota" : "préstamo"}
             </Link>
@@ -157,10 +161,34 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/pagos">["
 
           <CuentaFondo />
 
+          {verPrestamo && !vigente && (
+            <section className="space-y-3">
+              <p className="text-muted">¿Cuál préstamo vas a pagar?</p>
+              {vigentes.map((x) => (
+                <Link key={x.id} href={`/pagos?pago=prestamo&id=${x.id}`} className="flex items-center justify-between rounded-[28px] bg-card p-5">
+                  <span>
+                    <span className="block text-lg font-bold">Saldo {pesos(x.cuentas.saldoCapital)}</span>
+                    <span className="block text-sm text-muted">
+                      Inicial {pesos(x.cuentas.capitalInicial)} · paga el día {x.cuentas.proximoPago ? Number(x.cuentas.proximoPago.slice(8, 10)) : "—"} de cada mes
+                      {x.cuentas.interesPendiente > 0 ? ` · interés pendiente ${pesos(x.cuentas.interesPendiente)}` : ""}
+                    </span>
+                  </span>
+                  <ArrowRight size={22} className="text-accent" />
+                </Link>
+              ))}
+            </section>
+          )}
+
           {verPrestamo && vigente && (
             <>
+              {vigentes.length > 1 && (
+                <Link href="/pagos?pago=prestamo" className="inline-block text-sm text-accent underline">
+                  Cambiar de préstamo
+                </Link>
+              )}
               <FormularioPagoPrestamo
-                key={`prestamo-${firmadasPrestamo.length}`}
+                key={`prestamo-${vigente.id}-${firmadasPrestamo.length}`}
+                prestamoId={vigente.id}
                 c={{
                   saldoCapital: vigente.cuentas.saldoCapital,
                   interesPendiente: vigente.cuentas.interesPendiente,

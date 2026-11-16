@@ -24,7 +24,7 @@ const pesos = (n: number) => `$${n.toLocaleString("es-CO")}`;
 const num = (t: string) => Number(t.replace(/\D/g, "")) || 0;
 
 // Pago del préstamo en tres modalidades: interés del mes, abono a capital (cualquier valor) o pago total.
-export default function FormularioPagoPrestamo({ c }: { c: Cifras }) {
+export default function FormularioPagoPrestamo({ c, prestamoId }: { c: Cifras; prestamoId: string }) {
   const [estado, accion, pendiente] = useActionState<EstadoForm, FormData>(reportarPagoPrestamo, {});
   const [comprimiendo, setComprimiendo] = useState(false);
   const [errorLocal, setErrorLocal] = useState("");
@@ -68,7 +68,7 @@ export default function FormularioPagoPrestamo({ c }: { c: Cifras }) {
         <p className="text-3xl font-extrabold tracking-tight">{pesos(c.saldoCapital)}</p>
         <p className="text-xs text-muted">
           El interés ({pesos(c.interesMensual)} al mes) se paga cada mes{c.diaDePago ? `, el día ${c.diaDePago}` : ""}, hasta cancelar todo el
-          capital. Al cancelarlo por completo quedas libre para pedir otro préstamo.
+          capital. Cada préstamo tiene su propio día de pago.
         </p>
         {c.primeraCuotaPendiente && (
           <p className="text-xs text-muted">
@@ -109,6 +109,7 @@ export default function FormularioPagoPrestamo({ c }: { c: Cifras }) {
           </>
         )}
 
+        <input type="hidden" name="prestamo_id" value={prestamoId} />
         <input type="hidden" name="interes" value={montos.interes} />
         <input type="hidden" name="mora" value={montos.mora} />
         <input type="hidden" name="capital" value={montos.capital} />

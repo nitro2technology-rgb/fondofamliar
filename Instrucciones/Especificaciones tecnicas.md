@@ -43,12 +43,12 @@ Limitaciones del plan gratuito a vigilar: Supabase pausa proyectos inactivos (7 
 - `pagos_reportados` (cuota_id, asociado_id, tipo: fondo|cadena, monto, ruta_archivo, estado: pendiente|aprobado|rechazado, nota, subido_por, revisado_por, revisado_en; único por cuota+tipo)
 - `entregas_cadena`: eliminada en la migración 0013 (la cadena se paga directo al receptor)
 
-Funciones SQL: `es_admin()`, `generar_cuotas()`, `caja_disponible()`, `posicion_cola()`, `saldo_calculado(hasta)` (solo admins; ya sin cadena), `beneficiario_cadena(periodo)` (nombre y cuenta de quien tiene el turno, solo a quien tiene cuota ese mes o a un admin). Trigger que decide la votación con 2 votos iguales; índice único de multa por (reunión, asociado); índice único de un préstamo en curso por asociado.
+Funciones SQL: `es_admin()`, `generar_cuotas()`, `caja_disponible()`, `posicion_cola()`, `saldo_calculado(hasta)` (solo admins; ya sin cadena), `beneficiario_cadena(periodo)` (nombre y cuenta de quien tiene el turno, solo a quien tiene cuota ese mes o a un admin). Trigger que decide la votación con 2 votos iguales; índice único de multa por (reunión, asociado). El índice único de un préstamo en curso por asociado se eliminó en la migración 0025 (varios préstamos a la vez).
 
 Reglas de integridad: montos en pesos enteros (COP, sin decimales); movimientos nunca se editan ni borran (se corrigen con contramovimiento); toda escritura financiera pasa por funciones/RPC con auditoría.
 
 ## 4. Lógica de negocio crítica
-- **Validación de préstamo**: asociado al día, sin préstamo vigente, tope $1.000.000 acumulado (asociado + externo).
+- **Validación de préstamo**: asociado al día, tope $1.000.000 sobre el total comprometido (capital pendiente de los vigentes + solicitudes radicadas/aprobadas), validado en el servidor (`resumenPrestamo`).
 - **Cola**: por `radicado_en`; se atiende según caja disponible (saldo calculado).
 - **Votación**: solo los 3 administradores; aprobado con 2 de 3 votos.
 - **Interés**: cuota fija = 4% × capital inicial, que vence **cada mes el mismo día del desembolso** (`sumarMeses` en `lib/prestamos.ts`, con ajuste a fin de mes) mientras haya saldo de capital; no cambia con los abonos. Se calcula al vuelo (`cuentasPrestamo`), sin tabla de causación.

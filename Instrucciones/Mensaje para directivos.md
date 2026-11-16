@@ -14,7 +14,7 @@ Propuesta: sí.
 4️⃣ *Multa por no asistir ($8.000):* ¿solo para quienes viven en Pasto?
 Propuesta: sí. (El retraso de $5.000 es para todos.)
 
-5️⃣ *Préstamos:* ¿un solo préstamo a la vez por persona, hasta pagar el anterior completo?
+5️⃣ *Préstamos:* varios préstamos a la vez por persona, con tope total de $1.000.000
 Propuesta: sí.
 
 Ya quedó definido: el 4x1000 lo paga cada deudor en su primera cuota, y el interés se paga cada mes el mismo día en que le entregan el préstamo. ¡Gracias!

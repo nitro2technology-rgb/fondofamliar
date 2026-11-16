@@ -59,8 +59,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
     (multasPend ?? []).filter((m) => m.asociado_id === id).reduce((s, m) => s + Number(m.monto), 0);
 
   const { data: activosPerfiles } = await supabase.from("perfiles").select("id, nombre").eq("activo", true).order("nombre");
-  const conPrestamo = new Set((activos ?? []).map((x) => x.asociado_id));
-  const sinPrestamo = (activosPerfiles ?? []).filter((x) => !conPrestamo.has(x.id));
+  const sinPrestamo = activosPerfiles ?? []; // un asociado puede tener varios préstamos a la vez
 
   const cola = (activos ?? []).filter((x) => x.estado !== "vigente");
   const vigentes = (activos ?? []).filter((x) => x.estado === "vigente");

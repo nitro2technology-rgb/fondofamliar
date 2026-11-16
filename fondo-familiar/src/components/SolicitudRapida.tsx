@@ -8,7 +8,7 @@ const pesos = (n: number) => `$${n.toLocaleString("es-CO")}`;
 
 // Tarjeta de solicitud rápida: pedir todo lo disponible (hasta el tope) u otro monto.
 // Pedir más de lo que hay no se rechaza: la solicitud queda en cola por orden de radicación.
-export default function SolicitudRapida({ caja, tope }: { caja: number; tope: number }) {
+export default function SolicitudRapida({ caja, tope, usado = 0 }: { caja: number; tope: number; usado?: number }) {
   const [estado, accion, pendiente] = useActionState<EstadoForm, FormData>(solicitarPrestamo, {});
   const [otro, setOtro] = useState(false);
   const todo = Math.min(tope, Math.max(0, caja));
@@ -36,7 +36,9 @@ export default function SolicitudRapida({ caja, tope }: { caja: number; tope: nu
           <p className="text-4xl font-extrabold tracking-tight">{pesos(Math.max(0, caja))}</p>
           <p className="text-sm opacity-80">
             {hayCaja
-              ? `Disponible para prestar · tope por persona ${pesos(tope)}`
+              ? usado > 0
+                ? `Disponible para prestar · puedes pedir hasta ${pesos(tope)} más (ya tienes ${pesos(usado)} entre préstamos y solicitudes)`
+                : `Disponible para prestar · tope por persona ${pesos(tope)}`
               : "Puedes solicitar igual y quedar en cola: se desembolsa cuando haya saldo."}
           </p>
         </div>

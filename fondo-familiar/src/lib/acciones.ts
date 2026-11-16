@@ -646,14 +646,6 @@ export async function registrarPrestamoManual(_: EstadoForm, formData: FormData)
   const db = clienteAdmin();
   const { data: socio } = await db.from("perfiles").select("id, nombre").eq("id", asociadoId).maybeSingle();
   if (!socio) return { error: "No se encontró al asociado." };
-  const { data: enCurso } = await db
-    .from("prestamos")
-    .select("id")
-    .eq("asociado_id", asociadoId)
-    .in("estado", ["radicado", "aprobado", "vigente"])
-    .limit(1);
-  if ((enCurso ?? []).length > 0) return { error: `${socio.nombre} ya tiene una solicitud o un préstamo en curso.` };
-
   let externoId: string | null = null;
   if (externo) {
     const { data, error } = await db.from("externos").insert({ nombre: externo, padrino_id: asociadoId }).select("id").single();
@@ -675,7 +667,7 @@ export async function registrarPrestamoManual(_: EstadoForm, formData: FormData)
     .select("id")
     .single();
   if (error || !prestamo) {
-    return { error: error?.code === "23505" ? `${socio.nombre} ya tiene un préstamo en curso.` : "No se pudo registrar el préstamo." };
+    return { error: "No se pudo registrar el préstamo." };
   }
   const { error: errorMov } = await db
     .from("movimientos_prestamo")
@@ -743,16 +735,21 @@ export async function solicitarPrestamo(_: EstadoForm, formData: FormData): Prom
   if (await cicloCerrado()) return { error: "El ciclo está cerrado: ya no se reciben solicitudes de préstamo." };
 
   const supabase = await crearClienteServidor();
-  const [{ data: tope }, { data: impagas }, { data: turnos }, { data: multas }] = await Promise.all([
-    supabase.from("parametros").select("valor").eq("clave", "tope_prestamo").single(),
+  const [{ tope, comprometido, cupo }, { data: impagas }, { data: turnos }, { data: multas }] = await Promise.all([
+    resumenPrestamo(perfil.id),
     supabase.from("cuotas").select("periodo").eq("asociado_id", perfil.id).neq("estado", "pagada"),
     supabase.from("cadena_turnos").select("fecha_reunion"),
     supabase.from("multas").select("id").eq("asociado_id", perfil.id).eq("pagada", false),
   ]);
 
   if (!monto || monto < 10000) return { error: "Escribe un monto de al menos $10.000." };
-  if (monto > Number(tope?.valor ?? 1_000_000)) {
-    return { error: "El monto supera el tope por asociado." };
+  if (monto > cupo) {
+    return {
+      error:
+        comprometido > 0
+          ? `Entre tus préstamos y solicitudes ya tienes ${pesos(comprometido)} de un tope de ${pesos(tope)}. Solo puedes pedir hasta ${pesos(cupo)} más.`
+          : `El monto supera el tope por asociado (${pesos(tope)}).`,
+    };
   }
   const vencidas = (impagas ?? []).some((c) =>
     (turnos ?? []).some((t) => t.fecha_reunion.slice(0, 7) === c.periodo.slice(0, 7) && t.fecha_reunion < hoy),
@@ -777,7 +774,7 @@ export async function solicitarPrestamo(_: EstadoForm, formData: FormData): Prom
     .insert({ asociado_id: perfil.id, externo_id: externoId, monto, estado: "radicado" });
   if (error) {
     return {
-      error: error.code === "23505" ? "Ya tienes una solicitud o un préstamo en curso." : "No se pudo radicar la solicitud.",
+      error: "No se pudo radicar la solicitud.",
     };
   }
   // Aviso a los directivos (si falla el correo, la solicitud ya quedó radicada).
@@ -919,8 +916,10 @@ export async function reportarPagoPrestamo(_: EstadoForm, formData: FormData): P
   if (!archivo.type.startsWith("image/")) return { error: "El archivo debe ser una imagen (pantallazo o foto del comprobante)." };
   if (archivo.size > 8 * 1024 * 1024) return { error: "La imagen pesa más de 8 MB." };
 
-  const { prestamo } = await resumenPrestamo(perfil.id);
-  if (!prestamo || prestamo.estado !== "vigente" || !("cuentas" in prestamo)) return { error: "No tienes un préstamo vigente." };
+  const prestamoId = String(formData.get("prestamo_id") ?? "");
+  const { prestamos } = await resumenPrestamo(perfil.id);
+  const prestamo = prestamos.find((x) => x.id === prestamoId && x.estado === "vigente");
+  if (!prestamo || !prestamo.cuentas) return { error: "Ese préstamo no está vigente." };
   const c = prestamo.cuentas;
   if (capital > c.saldoCapital) return { error: `El abono a capital no puede superar tu saldo (${c.saldoCapital.toLocaleString("es-CO")}).` };
   if (capital > 0 && capital === c.saldoCapital && interes < c.interesPendiente) {

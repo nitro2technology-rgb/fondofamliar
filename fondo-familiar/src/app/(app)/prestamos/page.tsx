@@ -55,44 +55,44 @@ async function Contenido() {
     ? await clienteAdmin().from("votos_prestamo").select("prestamo_id, comentario, voto").in("prestamo_id", lista.map((x) => x.id)).not("comentario", "is", null)
     : { data: [] };
   const notasDe = (id: string) => (comentarios ?? []).filter((c) => c.prestamo_id === id && c.comentario);
-  const enCurso = lista.find((x) => ["radicado", "aprobado", "vigente"].includes(x.estado));
+  // Del más antiguo al más nuevo (la lista viene del más nuevo al más antiguo).
+  const enCurso = lista.filter((x) => ["radicado", "aprobado", "vigente"].includes(x.estado)).reverse();
   const hoy = hoyColombia();
-  const puedePedir = Math.min(p.tope_prestamo ?? 1_000_000, Math.max(0, Number(caja ?? 0)));
+  const tasas = { interes: p.interes_prestamo_pct ?? 4, mora: p.interes_mora_pct ?? 4 };
+  const tope = p.tope_prestamo ?? 1_000_000;
 
-  const cuenta = enCurso ? null : await estadoDeCuenta(perfil.id);
+  const idsEnCurso = enCurso.map((x) => x.id);
+  const { data: todosMovs } = idsEnCurso.length
+    ? await supabase.from("movimientos_prestamo").select("prestamo_id, tipo, monto, fecha").in("prestamo_id", idsEnCurso).order("fecha", { ascending: false })
+    : { data: [] };
+  const detalle = await Promise.all(
+    enCurso.map(async (x) => {
+      const movs = (todosMovs ?? []).filter((m) => m.prestamo_id === x.id);
+      const cuentas = x.estado === "vigente" ? cuentasPrestamo(x.desembolsado_en, movs, hoy, tasas, x.cobrar_4x1000) : null;
+      const posicion = x.estado !== "vigente" ? await supabase.rpc("posicion_cola", { p_prestamo: x.id }) : null;
+      return { ...x, movs, cuentas, posicion: (posicion?.data as number | null | undefined) ?? null };
+    }),
+  );
+  // Lo que ya debe o tiene solicitado cuenta contra el tope por persona.
+  const comprometido = detalle.reduce((s, x) => s + (x.cuentas ? x.cuentas.saldoCapital : Number(x.monto)), 0);
+  const cupo = Math.max(0, tope - comprometido);
+  const puedePedir = Math.min(cupo, Math.max(0, Number(caja ?? 0)));
+  const puedeSolicitar = cupo >= 10000;
+
+  const cuenta = puedeSolicitar ? await estadoDeCuenta(perfil.id) : null;
   const bloqueoMultas = (cuenta?.multasPendientes ?? 0) > 0;
   const bloqueoMora = cuenta?.cuota?.estado === "En mora";
-
-  const posicion = enCurso && enCurso.estado !== "vigente" ? await supabase.rpc("posicion_cola", { p_prestamo: enCurso.id }) : null;
-
-  const { data: movs } = enCurso
-    ? await supabase
-        .from("movimientos_prestamo")
-        .select("tipo, monto, fecha")
-        .eq("prestamo_id", enCurso.id)
-        .order("fecha", { ascending: false })
-    : { data: [] };
-
-  const cuentas = enCurso
-    ? cuentasPrestamo(
-        enCurso.desembolsado_en,
-        movs ?? [],
-        hoy,
-        { interes: p.interes_prestamo_pct ?? 4, mora: p.interes_mora_pct ?? 4 },
-        enCurso.cobrar_4x1000,
-      )
-    : null;
 
   return (
     <div className="space-y-5">
       <h1 className="text-3xl font-bold tracking-tight">Préstamos</h1>
 
-      {!enCurso && (bloqueoMultas || bloqueoMora) && (
+      {puedeSolicitar && (bloqueoMultas || bloqueoMora) && cuenta && (
         <section className="space-y-3 rounded-[28px] border-2 border-danger bg-card p-5">
           <p className="flex items-center gap-2 font-bold text-danger">
             <Lock size={18} /> Solicitud bloqueada
           </p>
-          {bloqueoMultas && cuenta && (
+          {bloqueoMultas && (
             <div className="space-y-1 text-sm">
               <p>Debes {pesos(cuenta.multasPendientes)} en multas:</p>
               {cuenta.multas.map((m, i) => (
@@ -112,13 +112,16 @@ async function Contenido() {
         </section>
       )}
 
-      {!enCurso && !bloqueoMultas && !bloqueoMora && (
+      {puedeSolicitar && !bloqueoMultas && !bloqueoMora && (
         <>
           <p className="text-sm text-muted">
-            Hay {pesos(puedePedir)} disponibles para prestar (tope {pesos(p.tope_prestamo ?? 1_000_000)}). Si no alcanza, tu
-            solicitud queda en cola por orden de radicación.
+            {comprometido > 0
+              ? `Entre tus préstamos y solicitudes ya tienes ${pesos(comprometido)} de un tope de ${pesos(tope)}: puedes pedir hasta ${pesos(cupo)} más.`
+              : `Puedes pedir hasta ${pesos(tope)}.`}{" "}
+            Hay {pesos(puedePedir)} disponibles para prestar ahora; si no alcanza, tu solicitud queda en cola por orden de radicación.
+            Cada préstamo es independiente y paga su interés el mismo día del mes en que se desembolsa.
           </p>
-          <SolicitudRapida caja={Math.max(0, Number(caja ?? 0))} tope={p.tope_prestamo ?? 1_000_000} />
+          <SolicitudRapida caja={Math.max(0, Number(caja ?? 0))} tope={cupo} usado={comprometido} />
           <details className="rounded-[28px] bg-card p-4">
             <summary className="cursor-pointer text-sm font-semibold">Solicitar para un externo que apadrino</summary>
             <div className="pt-3">
@@ -128,66 +131,64 @@ async function Contenido() {
         </>
       )}
 
-      {enCurso && (
-        <section className="space-y-4">
-          {enCurso.estado === "vigente" && cuentas ? (
+      {detalle.map((x, n) => (
+        <section key={x.id} className="space-y-4">
+          {detalle.length > 1 && <h2 className="px-1 text-lg font-semibold">Préstamo {n + 1}</h2>}
+          {x.cuentas ? (
             <>
               <TarjetaPrestamo
                 etiqueta="Tu préstamo"
-                valor={pesos(cuentas.saldoCapital)}
+                valor={pesos(x.cuentas.saldoCapital)}
                 titular={perfil.nombre}
-                izquierda={{ titulo: "Interés mensual", valor: pesos(cuentas.interesMensual) }}
-                derecha={{ titulo: "Inicial", valor: pesos(cuentas.capitalInicial) }}
+                izquierda={{ titulo: "Interés mensual", valor: pesos(x.cuentas.interesMensual) }}
+                derecha={{ titulo: "Inicial", valor: pesos(x.cuentas.capitalInicial) }}
               />
               <div className="grid grid-cols-3 gap-2 text-center text-sm">
-                <Dato titulo="Interés pendiente" valor={pesos(cuentas.interesPendiente)} />
-                <Dato titulo="Mora estimada" valor={pesos(cuentas.moraPendiente)} />
-                <Dato titulo="Próximo pago" valor={cuentas.proximoPago ? fechaCorta(cuentas.proximoPago) : "—"} />
+                <Dato titulo="Interés pendiente" valor={pesos(x.cuentas.interesPendiente)} />
+                <Dato titulo="Mora estimada" valor={pesos(x.cuentas.moraPendiente)} />
+                <Dato titulo="Próximo pago" valor={x.cuentas.proximoPago ? fechaCorta(x.cuentas.proximoPago) : "—"} />
               </div>
               <Link
-                href="/pagos?pago=prestamo"
+                href={`/pagos?pago=prestamo&id=${x.id}`}
                 className="flex items-center justify-center rounded-full bg-accent py-4 font-semibold text-accent-fg"
               >
                 Abonar o pagar interés
               </Link>
               <p className="text-xs text-muted">
-                El interés vence cada mes, el mismo día en que se te habilitó el préstamo, y se paga hasta cancelar todo el capital.{cuentas.primeraCuotaPendiente ? ` La primera cuota incluye el 4x1000 (${pesos(cuentas.cuatroPorMil)}), que solo se paga una vez.` : ""} Puedes abonar a capital cuando quieras y por
-                cualquier valor. Al cancelarlo por completo quedas libre para pedir otro préstamo. La mora es una estimación provisional.
+                El interés de este préstamo vence cada mes, el mismo día en que se te habilitó, y se paga hasta cancelar todo el capital.{x.cuentas.primeraCuotaPendiente ? ` La primera cuota incluye el 4x1000 (${pesos(x.cuentas.cuatroPorMil)}), que solo se paga una vez.` : ""} Puedes abonar a capital cuando quieras y por
+                cualquier valor. Lo que cancelas libera cupo para pedir más, dentro del tope. La mora es una estimación provisional.
               </p>
             </>
           ) : (
-            <>
-              <TarjetaPrestamo
-                etiqueta={ETIQUETA[enCurso.estado]}
-                valor={pesos(Number(enCurso.monto))}
-                titular={perfil.nombre}
-                izquierda={posicion?.data != null ? { titulo: "Posición en la cola", valor: String(posicion.data) } : undefined}
-              />
-            </>
+            <TarjetaPrestamo
+              etiqueta={ETIQUETA[x.estado]}
+              valor={pesos(Number(x.monto))}
+              titular={perfil.nombre}
+              izquierda={x.posicion != null ? { titulo: "Posición en la cola", valor: String(x.posicion) } : undefined}
+            />
+          )}
+          {x.movs.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-muted">Movimientos</h3>
+              {x.movs.map((m, i) => (
+                <div key={i} className="flex justify-between rounded-2xl bg-card p-4 text-sm">
+                  <div>
+                    <p>{MOV[m.tipo] ?? m.tipo}</p>
+                    <p className="text-xs text-muted">{fechaCorta(m.fecha)}</p>
+                  </div>
+                  <p className="font-semibold">{pesos(Number(m.monto))}</p>
+                </div>
+              ))}
+            </div>
           )}
         </section>
-      )}
+      ))}
 
-      {enCurso && (movs ?? []).length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-lg font-semibold">Movimientos</h2>
-          {(movs ?? []).map((m, i) => (
-            <div key={i} className="flex justify-between rounded-2xl bg-card p-4 text-sm">
-              <div>
-                <p>{MOV[m.tipo] ?? m.tipo}</p>
-                <p className="text-xs text-muted">{fechaCorta(m.fecha)}</p>
-              </div>
-              <p className="font-semibold">{pesos(Number(m.monto))}</p>
-            </div>
-          ))}
-        </section>
-      )}
-
-      {lista.filter((x) => x !== enCurso).length > 0 && (
+      {lista.filter((x) => !idsEnCurso.includes(x.id)).length > 0 && (
         <section className="space-y-2">
           <h2 className="text-lg font-semibold">Historial</h2>
           {lista
-            .filter((x) => x !== enCurso)
+            .filter((x) => !idsEnCurso.includes(x.id))
             .map((x) => (
               <div key={x.id} className="space-y-2 rounded-2xl bg-card p-4 text-sm">
                 <div className="flex justify-between">

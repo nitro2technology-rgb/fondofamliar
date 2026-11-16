@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     supabase.from("cadena_turnos").select("asociado_id, turno, fecha_reunion").order("turno"),
     supabase.from("aportes_unicos").select("tipo, monto, fecha_pago").eq("asociado_id", objetivo),
     supabase.from("multas").select("monto").eq("asociado_id", objetivo).eq("pagada", false),
-    supabase.from("prestamos").select("id, monto, desembolsado_en, cobrar_4x1000").eq("asociado_id", objetivo).eq("estado", "vigente").maybeSingle(),
+    supabase.from("prestamos").select("id, monto, desembolsado_en, cobrar_4x1000").eq("asociado_id", objetivo).eq("estado", "vigente").order("desembolsado_en"),
     supabase.from("parametros").select("clave, valor").in("clave", ["interes_prestamo_pct", "interes_mora_pct"]),
   ]);
   if (!perfil.data) return new Response("No encontrado", { status: 404 });
@@ -44,14 +44,15 @@ export async function GET(request: Request) {
     r.linea(`Aporte ${a.tipo === "inicial" ? "inicial" : "tecnologico"} (${fechaCorta(a.fecha_pago)})`, pesos(Number(a.monto))),
   );
 
-  if (prestamo.data) {
-    const { data: movs } = await supabase.from("movimientos_prestamo").select("tipo, monto, fecha").eq("prestamo_id", prestamo.data.id).order("fecha");
+  const listaPrestamos = prestamo.data ?? [];
+  for (const [n, pr] of listaPrestamos.entries()) {
+    const { data: movs } = await supabase.from("movimientos_prestamo").select("tipo, monto, fecha").eq("prestamo_id", pr.id).order("fecha");
     const p = Object.fromEntries((params.data ?? []).map((x) => [x.clave, Number(x.valor)]));
-    const c = cuentasPrestamo(prestamo.data.desembolsado_en, movs ?? [], hoy, {
+    const c = cuentasPrestamo(pr.desembolsado_en, movs ?? [], hoy, {
       interes: p.interes_prestamo_pct ?? 4,
       mora: p.interes_mora_pct ?? 4,
-    }, prestamo.data.cobrar_4x1000);
-    r.seccion("Prestamo vigente");
+    }, pr.cobrar_4x1000);
+    r.seccion(listaPrestamos.length > 1 ? `Prestamo vigente ${n + 1}` : "Prestamo vigente");
     r.linea("Capital inicial", pesos(c.capitalInicial));
     r.linea("Saldo de capital", pesos(c.saldoCapital));
     r.linea("Interes mensual fijo", pesos(c.interesMensual));

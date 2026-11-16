@@ -28,7 +28,7 @@ export default function Inicio() {
 
 async function InicioContenido() {
   const perfil = await requerirPerfil();
-  const [cuenta, { prestamo, tope, puedePedir, caja }, turnoCadena, visto, fotos] = await Promise.all([
+  const [cuenta, { prestamos, tope, comprometido, cupo, puedePedir, caja }, turnoCadena, visto, fotos] = await Promise.all([
     estadoDeCuenta(perfil.id),
     resumenPrestamo(perfil.id),
     turnoPorConfirmar(perfil.id),
@@ -41,8 +41,7 @@ async function InicioContenido() {
     .select("cuenta_pago")
     .eq("id", perfil.id)
     .maybeSingle();
-  const puedeSolicitar = !prestamo && cuenta.multas.length === 0 && cuenta.cuota?.estado !== "En mora";
-  const vigente = prestamo?.estado === "vigente" ? prestamo : null;
+  const puedeSolicitar = cupo >= 10000 && cuenta.multas.length === 0 && cuenta.cuota?.estado !== "En mora";
   const primera = cuenta.historial.findIndex((c) => !c.pagada);
   const inicio = Math.max(0, (primera === -1 ? cuenta.historial.length : primera) - 1);
   const visibles = cuenta.historial.slice(inicio, inicio + 4);
@@ -157,25 +156,30 @@ async function InicioContenido() {
 
       <ActivarNotificaciones compacto />
 
-      {puedeSolicitar && <SolicitudRapida caja={Math.max(0, caja)} tope={tope} />}
+      {puedeSolicitar && <SolicitudRapida caja={Math.max(0, caja)} tope={cupo} usado={comprometido} />}
 
       {/* Tarjeta principal: préstamo vigente y cuánto puede pedir */}
       <section data-tour="prestamo" className="space-y-3">
-        {vigente ? (
-          <TarjetaPrestamo
-            etiqueta="Tu préstamo"
-            valor={pesos(vigente.cuentas.saldoCapital)}
-            titular={perfil.nombre}
-            izquierda={{ titulo: "Interés mensual", valor: pesos(vigente.cuentas.interesMensual) }}
-            derecha={{ titulo: "Interés pendiente", valor: pesos(vigente.cuentas.interesPendiente) }}
-          />
-        ) : prestamo ? (
-          <TarjetaPrestamo
-            etiqueta={prestamo.estado === "radicado" ? "Solicitud en votación" : "Solicitud aprobada"}
-            valor={pesos(Number(prestamo.monto))}
-            titular={perfil.nombre}
-          />
-        ) : (
+        {prestamos.map((p) =>
+          p.cuentas ? (
+            <TarjetaPrestamo
+              key={p.id}
+              etiqueta={prestamos.length > 1 ? `Préstamo de ${pesos(p.cuentas.capitalInicial)}` : "Tu préstamo"}
+              valor={pesos(p.cuentas.saldoCapital)}
+              titular={perfil.nombre}
+              izquierda={{ titulo: "Interés mensual", valor: pesos(p.cuentas.interesMensual) }}
+              derecha={{ titulo: p.cuentas.proximoPago ? "Próximo pago" : "Interés pendiente", valor: p.cuentas.proximoPago ? fechaCorta(p.cuentas.proximoPago) : pesos(p.cuentas.interesPendiente) }}
+            />
+          ) : (
+            <TarjetaPrestamo
+              key={p.id}
+              etiqueta={p.estado === "radicado" ? "Solicitud en votación" : "Solicitud aprobada"}
+              valor={pesos(Number(p.monto))}
+              titular={perfil.nombre}
+            />
+          ),
+        )}
+        {prestamos.length === 0 && (
           <TarjetaPrestamo
             etiqueta="Disponible para ti"
             valor={pesos(puedePedir)}
@@ -183,12 +187,12 @@ async function InicioContenido() {
             izquierda={{ titulo: "Tope", valor: pesos(tope) }}
           />
         )}
-        {!puedeSolicitar && (
+        {(!puedeSolicitar || prestamos.length > 0) && (
         <Link
           href="/prestamos"
           className="flex items-center justify-between rounded-full bg-card px-5 py-3.5 text-sm font-semibold"
         >
-          {vigente ? "Abonar o ver mi préstamo" : prestamo ? "Ver detalle" : "Solicitar préstamo"}
+          {prestamos.some((p) => p.cuentas) ? "Abonar o ver mis préstamos" : prestamos.length ? "Ver detalle" : "Solicitar préstamo"}
           <ArrowRight size={18} />
         </Link>
         )}

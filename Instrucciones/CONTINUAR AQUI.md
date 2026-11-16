@@ -545,3 +545,9 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - Decidir si los asociados ven el total recaudado en juegos (hoy solo directivos).
 - Mejoras propuestas de la sesión 10 (aviso si falla el cron/respaldo, lista de quién activó cuenta, reporte mensual al fiscal, bitácora de auditoría, pruebas automáticas de cuentas de préstamo).
 - **Sin commit**: esta bitácora, `fondo-familiar/scripts/usuario-prueba.mjs` y el cambio de la carpeta `Pantallazos` (el pantallazo del QR tiene datos personales: no subirlo al repo).
+
+## Sesión 12 (2026-11-16) — Varios préstamos a la vez (sin subir; compila y pasa lint)
+- **Nueva regla (usuario)**: cada asociado puede tener varios préstamos simultáneos; el tope de $1.000.000 aplica al TOTAL (capital pendiente de los vigentes + solicitudes radicadas/aprobadas). Ej.: pidió $200.000 -> aún puede pedir $800.000. Cada préstamo es independiente y paga su interés el día del mes de su propio desembolso.
+- Migración **0025_varios_prestamos.sql** (elimina el índice único `un_prestamo_en_curso`): **falta ejecutarla en Supabase** (sin ella la segunda solicitud falla).
+- Código: `resumenPrestamo` (lib/cuentas.ts) ahora devuelve `prestamos[]`, `comprometido`, `cupo`, `puedePedir`; `solicitarPrestamo` valida contra `cupo`; `registrarPrestamoManual` ya no bloquea; `reportarPagoPrestamo` recibe `prestamo_id`. Pantallas: Inicio (una tarjeta por préstamo), `/prestamos` (sección por préstamo con su botón de abono y movimientos), `/pagos` (si hay varios vigentes pregunta cuál; `?pago=prestamo&id=`), estado de cuenta PDF (una sección por préstamo), Admin > Préstamos (manual para cualquier asociado). Especificaciones y tutorial actualizados.
+- Pendiente: ejecutar 0025, commit/push, probar con una solicitud adicional; el desembolso no revalida el tope (se validó al radicar). El mensaje a directivos (`Mensaje para directivos.md`, punto 5) quedó desactualizado.
