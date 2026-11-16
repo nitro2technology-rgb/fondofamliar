@@ -72,8 +72,9 @@ export async function detalleCadena(periodo: string, receptorId: string) {
   };
 }
 
-// Turno de cadena del asociado que ya empezó (desde el día 1 de su mes) y aún tiene pagos sin confirmar.
-// Cuando todos quedan confirmados deja de aparecer; los administradores lo siguen viendo en /admin/pagos.
+// Turno de cadena del asociado para llevar el control de los pagos que recibe.
+// Durante todo su mes se ve siempre (aunque ya estén todos confirmados) y solo con los comprobantes de ese mes.
+// Si termina el mes con pagos sin confirmar, sigue apareciendo hasta confirmarlos.
 export async function turnoPorConfirmar(asociadoId: string) {
   const { data: turnos } = await clienteAdmin()
     .from("cadena_turnos")
@@ -81,10 +82,16 @@ export async function turnoPorConfirmar(asociadoId: string) {
     .eq("asociado_id", asociadoId)
     .order("turno");
   const hoy = hoyColombia();
+  const mesActual = hoy.slice(0, 7);
 
   for (const t of turnos ?? []) {
     const periodo = `${t.fecha_reunion.slice(0, 7)}-01`;
     if (periodo > hoy) continue;
+    if (periodo.slice(0, 7) === mesActual) {
+      const detalle = await detalleCadena(periodo, asociadoId);
+      if (detalle.total > 0) return { turno: t, periodo, ...detalle };
+      continue;
+    }
     const detalle = await detalleCadena(periodo, asociadoId);
     if (detalle.total > 0 && detalle.confirmados < detalle.total) return { turno: t, periodo, ...detalle };
   }

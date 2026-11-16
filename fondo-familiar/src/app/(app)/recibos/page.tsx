@@ -17,7 +17,7 @@ export default function Recibos() {
 async function Contenido() {
   const perfil = await requerirPerfil();
   const turno = await turnoPorConfirmar(perfil.id);
-  // Sin turno activo, o con todos los pagos ya confirmados, la ventana no se muestra.
+  // Solo se muestra durante el mes de tu turno (o mientras queden pagos sin confirmar).
   if (!turno) redirect("/");
 
   return (
@@ -27,7 +27,7 @@ async function Contenido() {
       </Link>
       <h1 className="text-3xl font-bold tracking-tight">Confirmar pagos</h1>
       <p className="text-sm text-muted">
-        Es tu turno de cadena ({mesLargo(turno.periodo)}). Revisa la captura de cada socio y confirma si recibiste el dinero.
+        Es tu turno de cadena ({mesLargo(turno.periodo)}). Aquí ves los comprobantes de este mes para llevar el control; confirma si recibiste el dinero.
       </p>
 
       <div className="rounded-2xl bg-gradient-to-br from-[#0b7a57] to-[#0e3b2e] p-4 text-white">

@@ -122,7 +122,9 @@ async function InicioContenido() {
 
       {turnoCadena && (
         <Link href="/recibos" className="block rounded-2xl border-2 border-accent bg-accent-soft p-4">
-          <p className="font-bold text-accent">Es tu turno: confirma los pagos de los socios</p>
+          <p className="font-bold text-accent">
+            {turnoCadena.confirmados < turnoCadena.total ? "Es tu turno: confirma los pagos de los socios" : "Es tu turno: pagos de la cadena de este mes"}
+          </p>
           <p className="text-sm text-muted">
             {turnoCadena.confirmados} de {turnoCadena.total} confirmados · {turnoCadena.porConfirmar} por confirmar
           </p>
