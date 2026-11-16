@@ -9,6 +9,7 @@ import VisorImagen from "@/components/VisorImagen";
 import FormularioPago from "./FormularioPago";
 import FormularioPagoPrestamo from "./FormularioPagoPrestamo";
 import ModoPago from "./ModoPago";
+import CuentaFondo from "@/components/CuentaFondo";
 import PagoPorVarios, { type OpcionPersona } from "./PagoPorVarios";
 import { clienteAdmin } from "@/lib/supabase/admin";
 
@@ -123,7 +124,12 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/pagos">["
       {!hayCuota && !vigente ? (
         <>
           <p className="rounded-[28px] bg-card p-5 text-muted">No tienes cuotas pendientes ni préstamo. ¡Estás al día!</p>
-          {personasVarios.length > 0 && <PagoPorVarios personas={personasVarios} yoId={perfil.id} />}
+          {personasVarios.length > 0 && (
+            <>
+              <CuentaFondo />
+              <PagoPorVarios personas={personasVarios} yoId={perfil.id} />
+            </>
+          )}
         </>
       ) : preguntar ? (
         <section className="space-y-3">
@@ -148,6 +154,8 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/pagos">["
               Cambiar: pagar {verPrestamo ? "cuota" : "préstamo"}
             </Link>
           )}
+
+          <CuentaFondo />
 
           {verPrestamo && vigente && (
             <>
