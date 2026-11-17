@@ -580,3 +580,5 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 - Admin > Préstamos > Cola: en una solicitud aprobada se ve «Cuenta donde registró recibir el dinero» (`perfiles.cuenta_pago`) antes de «Registrar desembolso»; si falta, avisa. Tutorial y especificaciones actualizados.
 
 - Desembolso con comprobante: «Registrar desembolso» ya no descuenta de una vez. Abre un paso con la cuenta del beneficiario, pide el comprobante de la transferencia (`FormularioDesembolso.tsx`) y solo al confirmar registra el movimiento, pasa el préstamo a vigente y descuenta de la caja. El comprobante queda en `comprobantes-pago/desembolsos/<id>.jpg` (sin migración).
+
+- Perfil del socio: cada préstamo desembolsado con comprobante muestra «Ver comprobante» del desembolso (los anteriores no lo tienen).

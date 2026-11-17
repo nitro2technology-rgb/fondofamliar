@@ -8,6 +8,7 @@ import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { cuentasPrestamo } from "@/lib/prestamos";
 import { fechaCorta, hoyColombia, mesLargo, pesos } from "@/lib/format";
+import VisorImagen from "@/components/VisorImagen";
 import SubirPagoPrestamoAdmin from "../../pagos/SubirPagoPrestamoAdmin";
 
 export default function Socio({ params }: PageProps<"/admin/socio/[id]">) {
@@ -62,6 +63,14 @@ async function Contenido({ params }: { params: PageProps<"/admin/socio/[id]">["p
   const { data: movs } = ids.length
     ? await supabase.from("movimientos_prestamo").select("prestamo_id, tipo, monto, fecha").in("prestamo_id", ids).order("fecha", { ascending: false })
     : { data: [] };
+
+  // Comprobantes de desembolso (los préstamos anteriores a esta función no lo tienen).
+  const rutasDesembolso = (prestamos.data ?? []).filter((x) => x.desembolsado_en).map((x) => `desembolsos/${x.id}.jpg`);
+  const { data: firmadasDesembolso } = rutasDesembolso.length
+    ? await supabase.storage.from("comprobantes-pago").createSignedUrls(rutasDesembolso, 3600)
+    : { data: [] };
+  const comprobanteDesembolso = (idPrestamo: string) =>
+    firmadasDesembolso?.find((f) => f.path === `desembolsos/${idPrestamo}.jpg`)?.signedUrl ?? null;
 
   const pagadas = (cuotas.data ?? []).filter((c) => c.estado === "pagada");
   const totalCuotas = pagadas.reduce((s, c) => s + Number(c.ahorro) + Number(c.cadena) + Number(c.juegos), 0);
@@ -137,6 +146,12 @@ async function Contenido({ params }: { params: PageProps<"/admin/socio/[id]">["p
 
               {x.desembolsado_en && (
                 <>
+                  {comprobanteDesembolso(x.id) && (
+                    <div className="flex items-center justify-between gap-2 rounded-2xl bg-background px-4 py-3">
+                      <span className="text-sm text-muted">Comprobante del desembolso</span>
+                      <VisorImagen url={comprobanteDesembolso(x.id)!} texto="Ver comprobante" />
+                    </div>
+                  )}
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <Dato t="Intereses pagados" v={pesos(suma("interes"))} fondo />
                     <Dato t="Capital abonado" v={pesos(suma("abono_capital"))} fondo />
