@@ -837,24 +837,29 @@ export async function guardarNotaPrestamo(id: string, nota: string): Promise<Est
   return { ok: true };
 }
 
-export async function desembolsarPrestamo(formData: FormData) {
+export async function desembolsarPrestamo(_: EstadoForm, formData: FormData): Promise<EstadoForm> {
   const admin = await requerirAdmin();
   const id = String(formData.get("id"));
-  if (await cicloCerrado()) return;
+  if (await cicloCerrado()) return { error: "El ciclo está cerrado." };
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File) || archivo.size === 0) return { error: "Sube el comprobante de la transferencia para registrar el desembolso." };
+  if (!archivo.type.startsWith("image/")) return { error: "El archivo debe ser una imagen (pantallazo o foto del comprobante)." };
+  if (archivo.size > 8 * 1024 * 1024) return { error: "La imagen pesa más de 8 MB." };
+
   const supabase = await crearClienteServidor();
   const [{ data: prestamo }, { data: caja }, { data: enCola }] = await Promise.all([
     supabase.from("prestamos").select("monto, estado, asociado_id").eq("id", id).single(),
     supabase.rpc("caja_disponible"),
     supabase.from("prestamos").select("id, monto, estado, radicado_en").in("estado", ["radicado", "aprobado"]),
   ]);
-  if (!prestamo || prestamo.estado !== "aprobado") return;
+  if (!prestamo || prestamo.estado !== "aprobado") return { error: "Este préstamo ya no está pendiente de desembolso." };
   // La plata circula: se desembolsa si hoy alcanza para este monto, sin importar que una solicitud
   // anterior más grande siga esperando caja.
   const alcanzan = solicitudesQueAlcanzan(
     Number(caja),
     (enCola ?? []).map((x) => ({ id: x.id, monto: Number(x.monto), estado: x.estado, radicado_en: x.radicado_en })),
   );
-  if (!alcanzan.has(id)) return;
+  if (!alcanzan.has(id)) return { error: "Aún no hay caja suficiente para este monto." };
   // No se desembolsa a quien tenga multas pendientes.
   const { data: multasPend } = await supabase
     .from("multas")
@@ -862,13 +867,18 @@ export async function desembolsarPrestamo(formData: FormData) {
     .eq("asociado_id", prestamo.asociado_id)
     .eq("pagada", false)
     .limit(1);
-  if ((multasPend ?? []).length > 0) return;
+  if ((multasPend ?? []).length > 0) return { error: "Tiene multas pendientes." };
+
+  // Primero el comprobante; solo con él se registra el desembolso (y recién ahí se descuenta de la caja).
+  const ruta = `desembolsos/${id}.jpg`;
+  const { error: errorSubida } = await clienteAdmin().storage.from("comprobantes-pago").upload(ruta, archivo, { upsert: true, contentType: "image/jpeg" });
+  if (errorSubida) return { error: "No se pudo subir el comprobante." };
 
   const fecha = hoyColombia();
   const { error } = await supabase
     .from("movimientos_prestamo")
     .insert({ prestamo_id: id, tipo: "desembolso", monto: prestamo.monto, fecha, registrado_por: admin.id });
-  if (error) return;
+  if (error) return { error: "No se pudo registrar el desembolso." };
   await supabase.from("prestamos").update({ estado: "vigente", desembolsado_en: fecha, cobrar_4x1000: true }).eq("id", id);
   await enviarPush([prestamo.asociado_id], {
     titulo: "Tu préstamo fue desembolsado",
@@ -877,6 +887,7 @@ export async function desembolsarPrestamo(formData: FormData) {
     tag: "prestamo-desembolso",
   }).catch(() => 0);
   revalidatePath("/admin/prestamos");
+  return { ok: true };
 }
 
 // Cierra el ciclo: bloquea préstamos nuevos y avisa a todos. Solo si no hay préstamos por cancelar.

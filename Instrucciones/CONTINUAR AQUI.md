@@ -578,3 +578,5 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 ## Sesión 13 (2026-11-17) — Cola que no se bloquea y cuenta al desembolsar
 - Regla nueva: la cola ya no es estricta. Se recorre por orden de radicación y la solicitud que no alcanza con la caja (monto + 4x1000) espera sin bloquear a las siguientes (`lib/cola.ts`, usada en Admin > Préstamos y en `desembolsarPrestamo`). Sin migración.
 - Admin > Préstamos > Cola: en una solicitud aprobada se ve «Cuenta donde registró recibir el dinero» (`perfiles.cuenta_pago`) antes de «Registrar desembolso»; si falta, avisa. Tutorial y especificaciones actualizados.
+
+- Desembolso con comprobante: «Registrar desembolso» ya no descuenta de una vez. Abre un paso con la cuenta del beneficiario, pide el comprobante de la transferencia (`FormularioDesembolso.tsx`) y solo al confirmar registra el movimiento, pasa el préstamo a vigente y descuenta de la caja. El comprobante queda en `comprobantes-pago/desembolsos/<id>.jpg` (sin migración).

@@ -1,12 +1,12 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import FormularioDesembolso from "./FormularioDesembolso";
 import { solicitudesQueAlcanzan } from "@/lib/cola";
 import { Check, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import AvatarSocio from "@/components/AvatarSocio";
-import BotonEnvio from "@/components/BotonEnvio";
 import { requerirAdmin } from "@/lib/auth";
 import { crearClienteServidor } from "@/lib/supabase/server";
-import { desembolsarPrestamo, votarPrestamo } from "@/lib/acciones";
+import { votarPrestamo } from "@/lib/acciones";
 import NotaPrestamo from "./NotaPrestamo";
 import PrestamoManual from "./PrestamoManual";
 import { cuentasPrestamo } from "@/lib/prestamos";
@@ -226,17 +226,8 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
                     <NotaPrestamo id={x.id} inicial={x.nota} />
 
                     {aprobado && (
-                      <form action={desembolsarPrestamo} className="space-y-2">
-                        <input type="hidden" name="id" value={x.id} />
+                      <div className="space-y-2">
                         <p className="text-xs text-ok">Aprobado por los directivos. Falta entregar el dinero.</p>
-                        <div className="rounded-2xl bg-background px-3 py-2.5">
-                          <p className="text-xs text-muted">Cuenta donde registró recibir el dinero</p>
-                          {cuentaDe(x) ? (
-                            <p className="select-all break-all text-sm font-semibold">{cuentaDe(x)}</p>
-                          ) : (
-                            <p className="text-sm text-amber">Aún no registró su cuenta. Pídesela antes de transferir.</p>
-                          )}
-                        </div>
                         {!hayCaja && (
                           <p className="rounded-2xl bg-danger/10 px-3 py-2 text-xs text-danger">
                             Aún no hay caja para este monto: se desembolsará cuando haya fondos (las solicitudes menores que alcancen se atienden antes).
@@ -247,14 +238,8 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
                             Tiene {pesos(multasDe(x.asociado_id))} en multas pendientes: no se puede desembolsar hasta que las pague.
                           </p>
                         )}
-                        <BotonEnvio
-                          enviando="Registrando…"
-                          disabled={multasDe(x.asociado_id) > 0 || !hayCaja}
-                          className="w-full rounded-full bg-accent py-3 text-sm font-semibold text-accent-fg disabled:opacity-40"
-                        >
-                          Registrar desembolso
-                        </BotonEnvio>
-                      </form>
+                        <FormularioDesembolso id={x.id} cuenta={cuentaDe(x)} bloqueo={multasDe(x.asociado_id) > 0 || !hayCaja} />
+                      </div>
                     )}
                   </div>
                 </li>
