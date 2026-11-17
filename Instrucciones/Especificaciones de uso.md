@@ -28,7 +28,7 @@ Aplicación web privada (Art. 7 del estatuto) donde cada asociado verifica sus a
 **Préstamos**
 - Tope: $1.000.000 acumulado entre asociado y su externo apadrinado (Art. 11).
 - Solo a asociados al día y sin deudas con el fondo (Art. 12).
-- Solicitud por la app; si no hay caja, se atiende por **orden de radicación** (cola).
+- Solicitud por la app; si no hay caja, queda en cola por **orden de radicación**, pero la cola no se bloquea: una solicitud que no alcanza espera y las posteriores que sí alcancen se atienden primero (la plata circula). Al desembolsar, el directivo ve la cuenta que el asociado registró.
 - Aprobación: solo los 3 directivos votan.
 - Interés: 4% mensual **fijo sobre el capital inicial** (ej.: préstamo de $100.000 → $4.000 cada mes). La cuota de interés no baja ni varía hasta cancelar todo el capital, aunque haya abonos (Art. 14 y 15). **Se paga cada mes el mismo día en que se desembolsó el préstamo** (el día en que se habilita), no en la reunión.
 - **4x1000 (GMF)**: el banco cobra 0,4 % al desembolsar y la cuenta NU no es exenta; el deudor lo reembolsa **una sola vez, con su primera cuota de interés** (primero se cubre el 4x1000 y el resto es interés). Aparece como deuda del deudor y en la contabilidad es un movimiento aparte: **no suma a la caja prestable ni a las utilidades**. Los 6 préstamos cargados del Excel no lo pagan.

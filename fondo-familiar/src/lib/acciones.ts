@@ -9,6 +9,7 @@ import { requerirAdmin, requerirPerfil, requerirSesion as requerirSesionPerfil }
 import { hoyColombia, pesos } from "@/lib/format";
 import { enviarCorreos, plantilla, plantillaBienvenida } from "@/lib/correo";
 import { resumenPrestamo } from "@/lib/cuentas";
+import { solicitudesQueAlcanzan } from "@/lib/cola";
 import { cicloCerrado, datosCierre, plazoVencido } from "@/lib/cierre";
 import { gmfPorPagar } from "@/lib/prestamos";
 import { enviarPush, enviarPushAdmins } from "@/lib/push";
@@ -841,12 +842,19 @@ export async function desembolsarPrestamo(formData: FormData) {
   const id = String(formData.get("id"));
   if (await cicloCerrado()) return;
   const supabase = await crearClienteServidor();
-  const [{ data: prestamo }, { data: caja }] = await Promise.all([
+  const [{ data: prestamo }, { data: caja }, { data: enCola }] = await Promise.all([
     supabase.from("prestamos").select("monto, estado, asociado_id").eq("id", id).single(),
     supabase.rpc("caja_disponible"),
+    supabase.from("prestamos").select("id, monto, estado, radicado_en").in("estado", ["radicado", "aprobado"]),
   ]);
-  // La caja ya descuenta los préstamos aprobados, incluido este.
-  if (!prestamo || prestamo.estado !== "aprobado" || Number(caja) < 0) return;
+  if (!prestamo || prestamo.estado !== "aprobado") return;
+  // La plata circula: se desembolsa si hoy alcanza para este monto, sin importar que una solicitud
+  // anterior más grande siga esperando caja.
+  const alcanzan = solicitudesQueAlcanzan(
+    Number(caja),
+    (enCola ?? []).map((x) => ({ id: x.id, monto: Number(x.monto), estado: x.estado, radicado_en: x.radicado_en })),
+  );
+  if (!alcanzan.has(id)) return;
   // No se desembolsa a quien tenga multas pendientes.
   const { data: multasPend } = await supabase
     .from("multas")

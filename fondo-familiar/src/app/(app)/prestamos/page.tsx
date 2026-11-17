@@ -118,7 +118,7 @@ async function Contenido() {
             {comprometido > 0
               ? `Entre tus préstamos y solicitudes ya tienes ${pesos(comprometido)} de un tope de ${pesos(tope)}: puedes pedir hasta ${pesos(cupo)} más.`
               : `Puedes pedir hasta ${pesos(tope)}.`}{" "}
-            Hay {pesos(puedePedir)} disponibles para prestar ahora; si no alcanza, tu solicitud queda en cola por orden de radicación.
+            Hay {pesos(puedePedir)} disponibles para prestar ahora; si tu monto es mayor, tu solicitud espera sin bloquear a las demás: se desembolsa cuando haya caja y mientras tanto se atienden las menores que sí alcancen.
             Cada préstamo es independiente y paga su interés el mismo día del mes en que se desembolsa.
           </p>
           <SolicitudRapida caja={Math.max(0, Number(caja ?? 0))} tope={cupo} usado={comprometido} />

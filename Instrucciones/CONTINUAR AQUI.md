@@ -574,3 +574,7 @@ Web privada (PWA, mobile-first) para ~19 asociados del Fondo de Ahorro Familiar.
 5. Decidir si los asociados ven el total de juegos. Mejoras de la sesión 10 (aviso si falla el cron, quién activó cuenta, reporte mensual, bitácora de auditoría, pruebas automáticas de cuentas de préstamo).
 6. Sin commit a propósito: cambios en `Instrucciones/Pantallazos` (el pantallazo del QR tiene datos personales) y `fondo-familiar/scripts/usuario-prueba.mjs`.
 
+
+## Sesión 13 (2026-11-17) — Cola que no se bloquea y cuenta al desembolsar
+- Regla nueva: la cola ya no es estricta. Se recorre por orden de radicación y la solicitud que no alcanza con la caja (monto + 4x1000) espera sin bloquear a las siguientes (`lib/cola.ts`, usada en Admin > Préstamos y en `desembolsarPrestamo`). Sin migración.
+- Admin > Préstamos > Cola: en una solicitud aprobada se ve «Cuenta donde registró recibir el dinero» (`perfiles.cuenta_pago`) antes de «Registrar desembolso»; si falta, avisa. Tutorial y especificaciones actualizados.

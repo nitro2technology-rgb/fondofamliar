@@ -49,7 +49,7 @@ Reglas de integridad: montos en pesos enteros (COP, sin decimales); movimientos 
 
 ## 4. Lógica de negocio crítica
 - **Validación de préstamo**: asociado al día, tope $1.000.000 sobre el total comprometido (capital pendiente de los vigentes + solicitudes radicadas/aprobadas), validado en el servidor (`resumenPrestamo`).
-- **Cola**: por `radicado_en`; se atiende según caja disponible (saldo calculado).
+- **Cola**: por `radicado_en`; se reparte la caja disponible recorriendo la cola en orden y saltando las solicitudes que no alcanzan (`lib/cola.ts`, incluye el 4x1000); `desembolsarPrestamo` aplica la misma regla.
 - **Votación**: solo los 3 administradores; aprobado con 2 de 3 votos.
 - **Interés**: cuota fija = 4% × capital inicial, que vence **cada mes el mismo día del desembolso** (`sumarMeses` en `lib/prestamos.ts`, con ajuste a fin de mes) mientras haya saldo de capital; no cambia con los abonos. Se calcula al vuelo (`cuentasPrestamo`), sin tabla de causación.
 - **4x1000**: 0,4 % del capital desembolsado (`PORCENTAJE_4X1000`), solo si `prestamos.cobrar_4x1000` (se marca al desembolsar; los 6 del Excel no). Lo que el deudor paga como interés cubre primero el 4x1000 pendiente (se separa al reportar el pago y se guarda como `reembolso_4x1000`, que no entra en `caja_disponible` ni en utilidades del cierre). `saldo_calculado` resta el impuesto pagado al banco al desembolsar y suma el reembolso.

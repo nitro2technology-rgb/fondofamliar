@@ -40,7 +40,7 @@ export const PASOS_ASOCIADO: PasoTutorial[] = [
     texto: "Cuando hay dinero disponible aquí puedes solicitarlo en un toque:",
     puntos: [
       "Pide todo lo disponible u otro monto (tope $1.000.000)",
-      "Si no alcanza, quedas en cola por orden de llegada",
+      "Si tu monto es mayor que la caja, esperas sin bloquear a los demás: se atienden primero las solicitudes menores que sí alcancen",
       "Los 3 directivos votan; se aprueba con 2 votos",
       "Puedes tener varios préstamos a la vez, hasta $1.000.000 en total. Interés 4 % mensual fijo; cada préstamo paga el día de su desembolso; abonas a capital cuando quieras",
     ],
