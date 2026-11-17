@@ -34,7 +34,7 @@ async function Contenido({ params }: { params: PageProps<"/admin/socio/[id]">["p
 
   const { data: perfil } = await supabase
     .from("perfiles")
-    .select("id, nombre, rol, celular, ciudad, correo")
+    .select("id, nombre, rol, celular, ciudad, correo, cuenta_pago")
     .eq("id", id)
     .maybeSingle();
   if (!perfil) notFound();
@@ -90,6 +90,15 @@ async function Contenido({ params }: { params: PageProps<"/admin/socio/[id]">["p
           )}
         </div>
       </header>
+
+      <section className="rounded-[28px] bg-card p-4">
+        <p className="text-xs text-muted">Cuenta o llave donde registró recibir pagos</p>
+        {perfil.cuenta_pago ? (
+          <p className="select-all break-all text-base font-semibold">{perfil.cuenta_pago}</p>
+        ) : (
+          <p className="text-sm text-amber">Aún no ha registrado su cuenta.</p>
+        )}
+      </section>
 
       <section className="grid grid-cols-3 gap-2 text-center">
         <Dato t="Cuotas pagadas" v={`${pagadas.length}/${(cuotas.data ?? []).length}`} />
