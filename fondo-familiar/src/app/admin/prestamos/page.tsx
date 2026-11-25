@@ -9,6 +9,8 @@ import { crearClienteServidor } from "@/lib/supabase/server";
 import { votarPrestamo } from "@/lib/acciones";
 import NotaPrestamo from "./NotaPrestamo";
 import PrestamoManual from "./PrestamoManual";
+import ComprobantesPrestamo from "../pagos/ComprobantesPrestamo";
+import { comprobantesDePrestamos } from "@/lib/comprobantes-prestamo";
 import { cuentasPrestamo } from "@/lib/prestamos";
 import { fechaCorta, hoyColombia, pesos } from "@/lib/format";
 
@@ -67,6 +69,9 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
   const vigentes = (activos ?? []).filter((x) => x.estado === "vigente");
   const pedida = String((await searchParams).vista ?? "");
   const vista: Vista = pedida === "vigentes" || pedida === "historial" || pedida === "cola" ? pedida : cola.length ? "cola" : "vigentes";
+
+  const comprobantes = await comprobantesDePrestamos(supabase, [...vigentes, ...(historial ?? [])].map((x) => x.id));
+  const comprobantesDe = (id: string) => comprobantes.filter((c) => c.prestamoId === id);
 
   const cajaLibre = Number(caja ?? 0); // ya descuenta lo aprobado sin desembolsar
   const porCobrar = vigentes.reduce((s, x) => {
@@ -280,6 +285,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
                   <Dato t="Interés mes" v={pesos(c.interesMensual)} fondo />
                   <Dato t="Interés pend." v={pesos(c.interesPendiente)} fondo />
                 </div>
+                <ComprobantesPrestamo lista={comprobantesDe(x.id)} />
                 <NotaPrestamo id={x.id} inicial={x.nota} />
                 <Link
                   href="/admin/pagos?tipo=prestamo"
@@ -318,6 +324,7 @@ async function Contenido({ searchParams }: { searchParams: PageProps<"/admin/pre
                       <span className="font-semibold">{admins?.find((a) => a.id === o.admin_id)?.nombre ?? "Directivo"}</span> ({o.voto === "aprobar" ? "aprobó" : "rechazó"}): {o.comentario}
                     </p>
                   ))}
+                  <ComprobantesPrestamo lista={comprobantesDe(x.id)} />
                   <NotaPrestamo id={x.id} inicial={x.nota} />
                 </div>
               );

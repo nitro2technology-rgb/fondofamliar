@@ -10,6 +10,8 @@ import { cuentasPrestamo } from "@/lib/prestamos";
 import { fechaCorta, hoyColombia, mesLargo, pesos } from "@/lib/format";
 import VisorImagen from "@/components/VisorImagen";
 import SubirPagoPrestamoAdmin from "../../pagos/SubirPagoPrestamoAdmin";
+import ComprobantesPrestamo from "../../pagos/ComprobantesPrestamo";
+import { comprobantesDePrestamos } from "@/lib/comprobantes-prestamo";
 
 export default function Socio({ params }: PageProps<"/admin/socio/[id]">) {
   return (
@@ -41,7 +43,7 @@ async function Contenido({ params }: { params: PageProps<"/admin/socio/[id]">["p
   if (!perfil) notFound();
 
   const [cuotas, turnos, aportes, prestamos, multas, asistencias, parametros] = await Promise.all([
-    supabase.from("cuotas").select("periodo, ahorro, cadena, juegos, estado, fecha_pago").eq("asociado_id", id).order("periodo"),
+    supabase.from("cuotas").select("id, periodo, ahorro, cadena, juegos, estado, fecha_pago").eq("asociado_id", id).order("periodo"),
     supabase.from("cadena_turnos").select("asociado_id, turno, fecha_reunion").order("turno"),
     supabase.from("aportes_unicos").select("tipo, monto, fecha_pago").eq("asociado_id", id),
     supabase
@@ -63,6 +65,19 @@ async function Contenido({ params }: { params: PageProps<"/admin/socio/[id]">["p
   const { data: movs } = ids.length
     ? await supabase.from("movimientos_prestamo").select("prestamo_id, tipo, monto, fecha").in("prestamo_id", ids).order("fecha", { ascending: false })
     : { data: [] };
+
+  const comprobantes = await comprobantesDePrestamos(supabase, ids);
+
+  // Comprobantes de las cuotas (fondo y cadena).
+  const { data: reportes } = await supabase.from("pagos_reportados").select("cuota_id, tipo, estado, ruta_archivo").eq("asociado_id", id);
+  const { data: firmadasCuotas } = reportes?.length
+    ? await supabase.storage.from("comprobantes-pago").createSignedUrls(reportes.map((r) => r.ruta_archivo), 3600)
+    : { data: [] };
+  const reportesDe = (cuotaId: string) =>
+    (reportes ?? [])
+      .filter((r) => r.cuota_id === cuotaId)
+      .sort((a, b) => b.tipo.localeCompare(a.tipo))
+      .map((r) => ({ ...r, url: firmadasCuotas?.find((f) => f.path === r.ruta_archivo)?.signedUrl ?? null }));
 
   // Comprobantes de desembolso (los préstamos anteriores a esta función no lo tienen).
   const rutasDesembolso = (prestamos.data ?? []).filter((x) => x.desembolsado_en).map((x) => `desembolsos/${x.id}.jpg`);
@@ -183,6 +198,7 @@ async function Contenido({ params }: { params: PageProps<"/admin/socio/[id]">["p
                       </div>
                     </div>
                   )}
+                  <ComprobantesPrestamo lista={comprobantes.filter((o) => o.prestamoId === x.id)} />
                   {vigente && (
                     <div className="flex">
                       <SubirPagoPrestamoAdmin prestamoId={x.id} interes={c.interesPendiente} mora={c.moraPendiente} />
@@ -203,7 +219,7 @@ async function Contenido({ params }: { params: PageProps<"/admin/socio/[id]">["p
             const pagada = c.estado === "pagada";
             const vencida = fechaDe(c.periodo) < hoy;
             return (
-              <div key={c.periodo} className="flex items-center gap-3 px-2 py-3">
+              <div key={c.periodo} className="flex flex-wrap items-center gap-3 px-2 py-3">
                 <span
                   className={`flex size-8 items-center justify-center rounded-full ${
                     pagada ? "bg-accent text-accent-fg" : vencida ? "bg-danger/15 text-danger" : "bg-amber/15 text-amber"
@@ -219,6 +235,20 @@ async function Contenido({ params }: { params: PageProps<"/admin/socio/[id]">["p
                   </p>
                 </div>
                 <p className="text-sm font-semibold">{pesos(Number(c.ahorro) + Number(c.cadena) + Number(c.juegos))}</p>
+                {reportesDe(c.id).length > 0 && (
+                  <div className="flex w-full flex-wrap items-center gap-2 pl-11">
+                    {reportesDe(c.id).map((r) => {
+                      const nombre = r.tipo === "fondo" ? "Fondo" : "Cadena";
+                      const estado = r.estado === "pendiente" ? " · por revisar" : r.estado === "rechazado" ? " · rechazado" : "";
+                      return r.url ? <VisorImagen key={r.tipo} url={r.url} texto={`${nombre}${estado}`} /> : null;
+                    })}
+                    {reportesDe(c.id).some((r) => r.estado === "pendiente") && (
+                      <Link href={`/admin/pagos?tipo=cuota&periodo=${c.periodo.slice(0, 7)}&filtro=todos`} className="text-xs text-accent underline">
+                        Revisar
+                      </Link>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}

@@ -1019,6 +1019,7 @@ export async function revisarPagoPrestamo(id: string, decision: "aprobado" | "re
   }
   revalidatePath("/admin/pagos");
   revalidatePath("/admin/prestamos");
+  revalidatePath("/admin/socio/[id]", "page");
   revalidatePath("/prestamos");
   revalidatePath("/pagos");
   revalidatePath("/");

@@ -23,6 +23,7 @@ export default function RevisionPagoPrestamo({
   estadoInicial,
   notaInicial,
   url,
+  enTarjeta = false,
 }: {
   id: string;
   asociado: string;
@@ -32,6 +33,7 @@ export default function RevisionPagoPrestamo({
   estadoInicial: Estado;
   notaInicial: string | null;
   url: string | null;
+  enTarjeta?: boolean;
 }) {
   const [estado, setEstado] = useState<Estado>(estadoInicial);
   const [nota, setNota] = useState(notaInicial);
@@ -61,7 +63,7 @@ export default function RevisionPagoPrestamo({
   const boton = "rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-60";
 
   return (
-    <div className="space-y-2 rounded-2xl bg-card p-3">
+    <div className={`space-y-2 rounded-2xl bg-card p-3 ${enTarjeta ? "border border-card-border" : ""}`}>
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-sm font-medium">{asociado}</p>
