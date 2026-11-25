@@ -79,7 +79,9 @@ export function cuentasPrestamo(
   // `interesPendiente` es lo que debe en total por la cuota de interés (interés + 4x1000 vencido).
   const interesPendiente = interesSoloPendiente + gmfVencido;
   // Lo que se paga en la próxima cuota si no hay nada atrasado (la primera lleva el 4x1000).
-  const interesProximo = interesMensual + (n === 0 ? gmfPendiente : 0);
+  // Lo pagado por adelantado (antes de su vencimiento) se descuenta de la próxima cuota.
+  const interesAdelantado = Math.max(0, interesPagado - n * interesMensual);
+  const interesProximo = Math.max(0, interesMensual - interesAdelantado) + (n === 0 ? gmfPendiente : 0);
 
   let moraCausada = 0;
   let porCubrir = interesPagado;

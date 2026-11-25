@@ -3,12 +3,14 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // Rutas que se pueden ver sin sesión.
 const PUBLICAS = ["/login", "/primer-ingreso"];
+const CRONS = ["/api/mantener-activo", "/api/recordatorios"];
 
 // Refresca la sesión de Supabase y envía a /login a quien no haya iniciado sesión.
 // La autorización real por rol se verifica en el servidor (lib/auth.ts) y en la base de datos (RLS).
 export async function proxy(request: NextRequest) {
-  // El cron de Vercel no tiene sesión; la ruta se protege con CRON_SECRET.
-  if (request.nextUrl.pathname === "/api/mantener-activo") return NextResponse.next();
+  // Los cron de Vercel no tienen sesión; cada ruta se protege con CRON_SECRET.
+  // Toda ruta nueva de `vercel.json` debe agregarse aquí, o se redirige a /login y nunca se ejecuta.
+  if (CRONS.includes(request.nextUrl.pathname)) return NextResponse.next();
 
   let respuesta = NextResponse.next({ request });
 
